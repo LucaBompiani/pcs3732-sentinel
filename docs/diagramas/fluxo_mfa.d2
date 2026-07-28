@@ -1,0 +1,27 @@
+# Fluxo de autenticacao MFA — proposta preliminar (Semana 1)
+# Diferenca-chave vs. arquitetura anterior (so facial): fatores em serie obrigatoria (E),
+# nao em esquema de fallback (OU). Timeouts/limiares ainda nao calibrados.
+
+inicio: "Inicializacao\n(carrega base de usuarios)" { shape: oval }
+vigia: "VIGIA\n(CPU ociosa, aguarda PIR)" { shape: rectangle }
+captura: "Captura quadros" { shape: rectangle }
+fator1_check: "Fator 1: face detectada\ne reconhecida na base?" { shape: diamond }
+fator2_pede: "Solicita Fator 2\n(PIN / cartao)" { shape: rectangle }
+fator2_check: "Fator 2 corresponde\nao usuario do Fator 1?" { shape: diamond }
+atua: "ATUA: rele ON 5s\nLED verde, bipe, LCD saudacao" { shape: rectangle }
+nega: "NEGA: LED vermelho\nbipe duplo, LCD acesso negado" { shape: rectangle }
+log_evento: "Log: evento\n(fator1, fator2, resultado)" { shape: rectangle }
+cadastro: "Modo CADASTRO\n(botao fisico + PIN mestre)" { shape: rectangle }
+
+inicio -> vigia
+vigia -> captura: "interrupcao PIR"
+vigia -> cadastro: "botao cadastro"
+captura -> fator1_check
+fator1_check -> nega: "nao identificado\n(timeout ou sem match)"
+fator1_check -> fator2_pede: "candidato identificado"
+fator2_pede -> fator2_check
+fator2_check -> nega: "PIN/cartao invalido\nou nao corresponde ao usuario"
+fator2_check -> atua: "valido"
+atua -> log_evento -> vigia
+nega -> log_evento
+cadastro -> vigia

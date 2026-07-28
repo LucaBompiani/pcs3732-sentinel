@@ -1,0 +1,63 @@
+# Arquitetura física — proposta preliminar (Semana 1)
+# Segundo fator (teclado 4x4 vs RFID) ainda em aberto — ver docs/relatorio.md secao 3.
+
+rpi: "Raspberry Pi 3 Model B+\n(BCM2837B0, 4x Cortex-A53)" {
+  shape: rectangle
+}
+
+pir: "Sensor PIR\nHC-SR501" {
+  shape: rectangle
+}
+
+camera: "Camera Module v2\n(CSI)\n[externo ao kit]" {
+  shape: rectangle
+}
+
+botao_cadastro: "Botao de\ncadastro" {
+  shape: rectangle
+}
+
+fator2: "Fator 2 (a definir)\nTeclado 4x4 ou\nleitor RFID MFRC522" {
+  shape: rectangle
+  style.stroke-dash: 3
+}
+
+lcd: "LCD1602\n(I2C)" {
+  shape: rectangle
+}
+
+led_verde: "LED verde" {
+  shape: rectangle
+}
+
+led_vermelho: "LED vermelho" {
+  shape: rectangle
+}
+
+buzzer: "Buzzer ativo" {
+  shape: rectangle
+}
+
+rele: "Modulo rele" {
+  shape: rectangle
+}
+
+fechadura: "Fechadura\nsolenoide 12V\n[externa ao kit]" {
+  shape: rectangle
+}
+
+fonte12v: "Fonte 12V\nindependente" {
+  shape: rectangle
+}
+
+pir -> rpi: "GPIO (IRQ)"
+botao_cadastro -> rpi: "GPIO (IRQ)"
+fator2 -> rpi: "GPIO / I2C / SPI"
+camera -> rpi: "CSI"
+rpi -> lcd: "I2C"
+rpi -> led_verde: "GPIO"
+rpi -> led_vermelho: "GPIO"
+rpi -> buzzer: "GPIO"
+rpi -> rele: "GPIO"
+rele -> fechadura: "12V"
+fonte12v -> fechadura: "alimentacao"
