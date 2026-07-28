@@ -1,8 +1,3 @@
-"""Máquina de estados do fluxo de autenticação: VIGIA -> FATOR1 -> FATOR2 -> ATUA/NEGA.
-
-Ver docs/diagramas/fluxo_mfa.d2. Os dois fatores são obrigatórios em série (E).
-"""
-
 from sentinel.infra.events_repository import log_event
 from sentinel.services import face_recognition, second_factor
 from sentinel.services.decision import authorize
