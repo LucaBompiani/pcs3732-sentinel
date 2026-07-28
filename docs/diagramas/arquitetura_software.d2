@@ -1,59 +1,40 @@
 # Arquitetura de software (camadas) — proposta preliminar (Semana 1)
-# Nomes de modulos ainda nao implementados: refletem src/sentinel/{app,services,infra}
+# Reflete src/sentinel/{app,services,infra}. Simplificado: setas so entre
+# camadas adjacentes, exceto o miolo da decisao MFA (destaque proposital).
+
+direction: down
 
 aplicacao: "Aplicacao" {
   style.fill: "#dbe9f6"
-  maquina_estados: "Maquina de estados\nVIGIA -> VERIFICA_FATOR1 -> VERIFICA_FATOR2 -> ATUA" {
-    shape: rectangle
-  }
-  cadastro: "Modo cadastro\n(enrolamento 2 fatores)" {
-    shape: rectangle
-  }
+  maquina_estados: "Maquina de estados\nVIGIA -> FATOR1 -> FATOR2 -> ATUA" { shape: rectangle }
+  cadastro: "Cadastro\n(enrolamento 2 fatores)" { shape: rectangle }
 }
 
 servicos: "Servicos" {
   style.fill: "#e6f4ea"
-  reconhecimento_facial: "Reconhecimento facial\n(Fator 1: embeddings + distancia)" {
-    shape: rectangle
-  }
-  verificacao_fator2: "Verificacao Fator 2\n(PIN / RFID - a definir)" {
-    shape: rectangle
-  }
-  decisao_mfa: "Decisao MFA\n(combina resultado dos 2 fatores)" {
-    shape: rectangle
-  }
-  auditoria: "Log / auditoria" {
-    shape: rectangle
-  }
+  reconhecimento_facial: "Fator 1\nReconhecimento facial" { shape: rectangle }
+  verificacao_fator2: "Fator 2\nPIN / RFID (a definir)" { shape: rectangle }
+  decisao_mfa: "Decisao MFA\n(E: Fator 1 E Fator 2)" { shape: rectangle; style.stroke-width: 2 }
+  auditoria: "Log / auditoria" { shape: rectangle }
+
+  reconhecimento_facial -> decisao_mfa
+  verificacao_fator2 -> decisao_mfa
+  decisao_mfa -> auditoria
 }
 
 infraestrutura: "Infraestrutura" {
   style.fill: "#fff3cd"
-  captura: "Captura (Picamera2)" { shape: rectangle }
-  gpio: "GPIO (gpiozero/lgpio)" { shape: rectangle }
-  persistencia: "Persistencia (SQLite)" { shape: rectangle }
-  lcd_drv: "LCD (I2C)" { shape: rectangle }
+  captura: "Captura\n(camera)" { shape: rectangle }
+  gpio: "GPIO\n(sensores/atuadores)" { shape: rectangle }
+  persistencia: "Persistencia\n(SQLite)" { shape: rectangle }
+  lcd_drv: "LCD" { shape: rectangle }
 }
 
-so: "SO: Raspberry Pi OS (Linux)\ndrivers CSI, I2C, SPI, gpiochip" {
+so: "SO: Raspberry Pi OS (Linux)" {
   shape: rectangle
   style.fill: "#f1f1f1"
 }
 
-aplicacao.maquina_estados -> servicos.reconhecimento_facial
-aplicacao.maquina_estados -> servicos.verificacao_fator2
-aplicacao.maquina_estados -> servicos.decisao_mfa
-aplicacao.cadastro -> servicos.reconhecimento_facial
-aplicacao.cadastro -> servicos.verificacao_fator2
-
-servicos.reconhecimento_facial -> servicos.decisao_mfa
-servicos.verificacao_fator2 -> servicos.decisao_mfa
-servicos.decisao_mfa -> servicos.auditoria
-
-servicos.reconhecimento_facial -> infraestrutura.captura
-servicos.verificacao_fator2 -> infraestrutura.gpio
-servicos.decisao_mfa -> infraestrutura.gpio
-servicos.auditoria -> infraestrutura.persistencia
-aplicacao.maquina_estados -> infraestrutura.lcd_drv
-
-infraestrutura -> so
+aplicacao -> servicos: "usa"
+servicos -> infraestrutura: "usa"
+infraestrutura -> so: "drivers"
