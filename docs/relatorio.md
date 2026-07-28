@@ -1,6 +1,6 @@
-# Sentinel — Controle de Acesso Físico com Autenticação Multifator (MFA) em Raspberry Pi 3
+# Sentinel: Controle de Acesso Físico com Autenticação Multifator (MFA) em Raspberry Pi 3
 
-**Disciplina:** PCS3732 – Laboratório de Processadores
+**Disciplina:** PCS3732 - Laboratório de Processadores
 **Plataforma:** Raspberry Pi 3 Model B+
 
 **Kit de referência:** Freenove (Ultimate/Complete Starter Kit for Raspberry Pi)
@@ -44,10 +44,10 @@ Projetar e implementar um sistema embarcado de controle de acesso físico com au
 ### 3.1 Requisitos funcionais
 
 - **RF01:** Detectar a presença de uma pessoa no ponto de acesso. Critério de aceite: a detecção de presença dispara a captura em menos de 500 ms.
-- **RF02:** Capturar imagem e detectar face no quadro (Fator 1 — entrada). Critério de aceite: a face frontal deve ser detectada a 0,5–1,5 m da câmera.
-- **RF03:** Reconhecer a face contra a base de cadastrados (Fator 1 — verificação). Critério de aceite: a decisão de identificado/não identificado deve ocorrer em até 3 s após o enquadramento.
-- **RF04:** Solicitar o segundo fator (PIN ou cartão RFID) somente após o Fator 1 identificar um candidato (Fator 2 — entrada). Critério de aceite: o LCD deve solicitar o segundo fator e o tempo de espera deve ser limitado por um timeout configurável.
-- **RF05:** Validar o segundo fator contra o cadastro do usuário identificado no Fator 1 (Fator 2 — verificação). Critério de aceite: o PIN ou UID do cartão deve corresponder ao usuário do Fator 1, e não a qualquer outro usuário da base.
+- **RF02:** Capturar imagem e detectar face no quadro (Fator 1, entrada). Critério de aceite: a face frontal deve ser detectada a 0,5–1,5 m da câmera.
+- **RF03:** Reconhecer a face contra a base de cadastrados (Fator 1, verificação). Critério de aceite: a decisão de identificado/não identificado deve ocorrer em até 3 s após o enquadramento.
+- **RF04:** Solicitar o segundo fator (PIN ou cartão RFID) somente após o Fator 1 identificar um candidato (Fator 2, entrada). Critério de aceite: o LCD deve solicitar o segundo fator e o tempo de espera deve ser limitado por um timeout configurável.
+- **RF05:** Validar o segundo fator contra o cadastro do usuário identificado no Fator 1 (Fator 2, verificação). Critério de aceite: o PIN ou UID do cartão deve corresponder ao usuário do Fator 1, e não a qualquer outro usuário da base.
 - **RF06:** Abrir o acesso somente quando os Fatores 1 e 2 forem válidos para o mesmo usuário. Critério de aceite: a fechadura deve ser acionada por 5 s, com feedback visual (LED verde) e sonoro.
 - **RF07:** Negar e sinalizar caso qualquer um dos fatores falhe. Critério de aceite: deve ocorrer LED vermelho, bipe distinto, acesso mantido travado e registro do motivo da falha (qual fator).
 - **RF08:** Cadastrar usuários localmente com os dois fatores (enrolamento). Critério de aceite: o fluxo deve ocorrer por botão físico + PIN mestre de operador, com captura de N amostras faciais e associação do segundo fator (PIN definido ou cartão lido).
@@ -90,7 +90,7 @@ Os dois fatores estão em **série obrigatória (E)**, de modo que a falha em qu
 ### 5.1 Linguagens
 - Python 3 (aplicação principal, pipeline de visão, controle de GPIO)
 
-### 5.2 Bibliotecas/Frameworks (candidatas — a confirmar com testes)
+### 5.2 Bibliotecas/Frameworks (candidatas, a confirmar com testes)
 - `face_recognition` / `dlib` para detecção e extração de embeddings faciais
 - `Picamera2` para captura de vídeo via CSI
 - `gpiozero` / `lgpio` para controle de GPIO (PIR, relé, LEDs, buzzer, teclado)
@@ -103,7 +103,7 @@ Os dois fatores estão em **série obrigatória (E)**, de modo que a falha em qu
 - Câmera Raspberry Pi Camera Module v2 (CSI): item externo ao kit
 - Teclado matricial 4×4 e/ou leitor RFID MFRC522 (segundo fator)
 - LCD1602 I2C, LEDs (verde/vermelho), buzzer ativo
-- Módulo relé + fechadura solenoide 12 V — fechadura externa ao kit
+- Módulo relé + fechadura solenoide 12 V (fechadura externa ao kit)
 
 ## 6. Metodologia de desenvolvimento
 
@@ -126,7 +126,7 @@ Nesta primeira entrega, os testes ainda não foram executados, mas a seção a s
 
 > AHONEN, T.; HADID, A.; PIETIKÄINEN, M. Face description with local binary patterns: application to face recognition. **IEEE Transactions on Pattern Analysis and Machine Intelligence**, v. 28, n. 12, p. 2037–2041, 2006.
 
-> BRASIL. **Lei nº 13.709, de 14 de agosto de 2018** (Lei Geral de Proteção de Dados Pessoais – LGPD). Diário Oficial da União: Brasília, DF, 15 ago. 2018.
+> BRASIL. **Lei nº 13.709, de 14 de agosto de 2018** (Lei Geral de Proteção de Dados Pessoais, LGPD). Diário Oficial da União: Brasília, DF, 15 ago. 2018.
 
 > FREENOVE. **Freenove Ultimate Starter Kit for Raspberry Pi — Tutorial**. Shenzhen: Freenove Technology, 2023. Disponível em: https://github.com/Freenove/Freenove_Ultimate_Starter_Kit_for_Raspberry_Pi. Acesso em: 28 jul. 2026.
 
