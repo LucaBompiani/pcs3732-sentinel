@@ -83,6 +83,11 @@ APT_PACKAGES=(
     git
 )
 
+# Instalados individualmente, ignorando falha: o nome muda entre versões do
+# Raspberry Pi OS (rpicam-apps no Bookworm, libcamera-apps no Bullseye) e a
+# ausência de um não deve abortar o setup inteiro.
+OPTIONAL_PACKAGES=(rpicam-apps libcamera-apps)
+
 install_packages() {
     step "1/6 Pacotes do sistema (apt)"
     local missing=()
@@ -97,6 +102,18 @@ install_packages() {
     run sudo apt-get update
     run sudo apt-get install -y "${missing[@]}"
     (( CHECK_ONLY )) || ok "pacotes instalados"
+
+    # Ferramentas de linha de comando da câmera (rpicam-hello), usadas no
+    # diagnóstico. Nome varia por versão, então tenta cada um sem abortar.
+    local opt
+    for opt in "${OPTIONAL_PACKAGES[@]}"; do
+        dpkg -s "$opt" >/dev/null 2>&1 && { ok "$opt já instalado"; continue; }
+        if (( CHECK_ONLY )); then
+            printf '  (check) tentaria instalar: %s\n' "$opt"
+        elif sudo apt-get install -y "$opt" >/dev/null 2>&1; then
+            ok "$opt instalado"
+        fi
+    done
 }
 
 # --------------------------------------- 2. interfaces do firmware (SPI/I2C/cam)
@@ -119,6 +136,22 @@ enable_interfaces() {
     ensure_boot_param dtparam=i2c_arm on
     # camera_auto_detect substitui o antigo start_x=1 / gpu_mem=128.
     ensure_boot_param camera_auto_detect 1
+
+    # A pilha legada de câmera (start_x=1) e o libcamera são mutuamente
+    # exclusivos: com start_x=1 o firmware reserva a câmera e picamera2 não a
+    # encontra — sintoma idêntico ao de cabo solto, e muito mais comum.
+    local cfg; cfg="$(boot_config)"
+    if grep -qE '^[[:space:]]*start_x=1' "$cfg" 2>/dev/null; then
+        if (( CHECK_ONLY )); then
+            warn "start_x=1 presente (pilha legada) — impede o libcamera"
+        else
+            sudo sed -i -E 's|^[[:space:]]*(start_x=1.*)$|# (sentinel) \1|' "$cfg"
+            ok "start_x=1 comentado (pilha legada desativada)"
+            NEEDS_REBOOT=1
+        fi
+    else
+        ok "pilha legada de câmera não está ativa"
+    fi
 
     # Verificação: os device nodes só existem depois do reboot.
     [[ -e /dev/spidev0.0 ]] && ok "/dev/spidev0.0 presente" || warn "/dev/spidev0.0 ausente (precisa reiniciar)"
