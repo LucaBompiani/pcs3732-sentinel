@@ -25,6 +25,36 @@ from sentinel.services.decision import authorize
 FACE_CAPTURE_ATTEMPTS = 6
 
 
+def pin_echo(hal, cfg, titulo, dica="termine com #"):
+    """Devolve um callback que mostra a digitação do PIN no display, ou ``None``.
+
+    Sem esse retorno visual não há como saber se o teclado registrou a tecla —
+    a varredura matricial ignora repiques e pressões muito curtas, e o usuário
+    fica digitando às cegas.
+
+    O padrão mascara os dígitos (``SENTINEL_PIN_ECHO=mask``): quem olha a tela
+    vê o comprimento, não o segredo. ``plain`` mostra os dígitos e serve para
+    depurar a montagem; ``off`` desliga o retorno.
+
+    Args:
+        hal: Dispositivos (usa ``hal.display``).
+        cfg: Configuração (``cfg.pin_echo``).
+        titulo: Primeira linha do display, mantida durante a digitação.
+        dica: Segunda linha enquanto nada foi digitado.
+    """
+    if cfg.pin_echo == "off":
+        return None
+
+    def mostrar(digitos):
+        if not digitos:
+            hal.display.show(titulo, dica)
+            return
+        texto = digitos if cfg.pin_echo == "plain" else "*" * len(digitos)
+        hal.display.show(titulo, texto)
+
+    return mostrar
+
+
 def run_access_attempt(conn, cfg, presented_name, pin=None, *, card_uid=None):
     """Núcleo puro: decide e registra uma tentativa de acesso.
 
@@ -80,7 +110,7 @@ def run_access_attempt(conn, cfg, presented_name, pin=None, *, card_uid=None):
     return autorizado, fator1_ok, fator2_ok
 
 
-def read_second_factor(hal, timeout):
+def read_second_factor(hal, timeout, on_change=None):
     """Aguarda o segundo fator: PIN (teclado) OU cartão (RFID), o que vier antes.
 
     Faz *polling* alternado nos dois dispositivos dentro do orçamento de tempo.
@@ -90,16 +120,21 @@ def read_second_factor(hal, timeout):
     Args:
         hal: Conjunto de dispositivos :class:`~sentinel.hal.hal_bundle.Hal`.
         timeout: Tempo máximo de espera, em segundos.
+        on_change: Callback de eco da digitação (ver :func:`pin_echo`).
 
     Returns:
         Tupla ``(pin, card_uid)`` — cada elemento é o valor lido ou ``None``.
     """
+    # Descarta dígitos que tenham sobrado de uma tentativa anterior: eles
+    # entrariam no PIN desta, causando uma falha inexplicável para o usuário.
+    hal.keypad.reset()
+
     deadline = time.monotonic() + timeout
     while True:
         card_uid = hal.rfid.read_uid(0)
         if card_uid is not None:
             return None, card_uid
-        pin = hal.keypad.read_pin(0)
+        pin = hal.keypad.read_pin(0, on_change=on_change)
         if pin is not None:
             return pin, None
         if time.monotonic() >= deadline:
@@ -147,7 +182,9 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
         return autorizado, f1, f2
 
     hal.display.show("Fator 2", "PIN ou cartao")  # RF04
-    pin, card_uid = read_second_factor(hal, cfg.factor2_timeout)
+    pin, card_uid = read_second_factor(
+        hal, cfg.factor2_timeout, on_change=pin_echo(hal, cfg, "Fator 2", "PIN ou cartao")
+    )
 
     autorizado, f1, f2 = run_access_attempt(  # RF05
         conn, cfg, candidate, pin, card_uid=card_uid
@@ -217,7 +254,10 @@ def run_enrollment(conn, hal, cfg, username, recognizer=None):
     hal.enroll_button.wait_for_press(cfg.factor2_timeout)
 
     hal.display.show("PIN do operador", "termine com #")
-    master = hal.keypad.read_pin(cfg.factor2_timeout)
+    hal.keypad.reset()
+    master = hal.keypad.read_pin(
+        cfg.factor2_timeout, on_change=pin_echo(hal, cfg, "PIN do operador")
+    )
     if master != cfg.master_pin:  # RF08 — autorização do operador
         hal.indicators.signal_denied()
         hal.display.show("Cadastro negado", "PIN mestre")
@@ -245,7 +285,10 @@ def run_enrollment(conn, hal, cfg, username, recognizer=None):
     # "PIN e/ou cartao" numa tela só deixava o usuário sem saber o que fazer
     # durante a leitura do cartão, que acontece depois do PIN de qualquer forma.
     hal.display.show("Defina seu PIN", "termine com #")
-    pin = hal.keypad.read_pin(cfg.factor2_timeout)
+    hal.keypad.reset()
+    pin = hal.keypad.read_pin(
+        cfg.factor2_timeout, on_change=pin_echo(hal, cfg, "Defina seu PIN")
+    )
     pin = pin or None  # "#" sem dígitos não é um PIN
 
     hal.display.show("Passe o cartao", "ou aguarde")

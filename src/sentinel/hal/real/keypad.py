@@ -31,6 +31,7 @@ class RealKeypad:
 
         self._rows = [DigitalOutputDevice(p) for p in row_pins]
         self._cols = [DigitalInputDevice(p, pull_up=False) for p in col_pins]
+        self._buffer = []  # dígitos pendentes entre leituras (ver read_pin)
 
     def _scan_key(self):
         for r, row in enumerate(self._rows):
@@ -57,22 +58,62 @@ class RealKeypad:
             time.sleep(0.05)
         return None
 
-    def read_pin(self, timeout=None):
-        """Lê dígitos até ``#`` (confirma) ou o timeout expirar."""
+    def reset(self):
+        """Descarta dígitos pendentes, para uma nova leitura começar limpa."""
+        self._buffer = []
+
+    def read_pin(self, timeout=None, on_change=None):
+        """Lê dígitos até ``#`` (confirma) ou o timeout expirar.
+
+        Os dígitos ficam num buffer da INSTÂNCIA, não numa variável local: o
+        ciclo de acesso consulta teclado e RFID alternadamente, chamando este
+        método várias vezes com timeout curto, e um buffer local perderia tudo
+        que foi digitado entre uma chamada e a seguinte.
+
+        Pelo mesmo motivo há sempre ao menos uma varredura, mesmo com
+        ``timeout=0`` — é assim que o polling de
+        :func:`~sentinel.app.state_machine.read_second_factor` consegue ler.
+
+        Args:
+            timeout: Tempo máximo de espera; ``None`` bloqueia.
+            on_change: Chamado com os dígitos acumulados a cada tecla, para
+                exibir o progresso no display.
+
+        Returns:
+            O PIN quando ``#`` for pressionado, ou ``None`` se o tempo acabar
+            antes (os dígitos já digitados permanecem no buffer).
+        """
         deadline = None if timeout is None else time.monotonic() + timeout
-        digits = []
-        while deadline is None or time.monotonic() < deadline:
+        primeira_varredura = True
+
+        while primeira_varredura or deadline is None or time.monotonic() < deadline:
+            primeira_varredura = False
             key = self._scan_key()
+
             if key is None:
+                if deadline is not None and time.monotonic() >= deadline:
+                    break
                 time.sleep(0.05)
                 continue
+
             if key == "#":
-                return "".join(digits)
+                pin = "".join(self._buffer)
+                self._buffer = []
+                if on_change is not None:
+                    on_change("")
+                return pin
+
             if key == "*":
-                digits = digits[:-1]
-            else:
-                digits.append(key)
+                self._buffer = self._buffer[:-1]
+            elif key.isdigit():
+                # A–D não são dígitos de PIN: 'A' dispara o cadastro e as
+                # demais ficam reservadas, então são ignoradas aqui.
+                self._buffer.append(key)
+
+            if on_change is not None:
+                on_change("".join(self._buffer))
             time.sleep(0.2)  # debounce simples
+
         return None
 
 

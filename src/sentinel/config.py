@@ -25,6 +25,10 @@ class Config:
         presence_timeout: Tempo máximo aguardando presença; ``None`` bloqueia
             indefinidamente.
         total_timeout: Orçamento total do fluxo de autenticação (RNF05).
+        pin_echo: Como o PIN digitado aparece no display: ``"mask"`` (padrão,
+            um ``*`` por dígito), ``"plain"`` (mostra os dígitos — use apenas em
+            depuração/demonstração, pois expõe o segredo a quem olhar a tela) ou
+            ``"off"`` (nenhum retorno visual).
         face_samples: Número de amostras faciais coletadas no cadastro (RF08).
         face_threshold: Distância qui-quadrado máxima entre o rosto capturado e
             a amostra mais próxima para aceitar a identidade (RF03). Menor =
@@ -42,6 +46,7 @@ class Config:
     factor2_timeout: float
     presence_timeout: "float | None"
     total_timeout: float
+    pin_echo: str
     face_samples: int
     face_threshold: float
     master_pin: str
@@ -84,6 +89,7 @@ def load_config():
         factor2_timeout=_get_float("SENTINEL_FACTOR2_TIMEOUT", 15.0),
         presence_timeout=_get_optional_float("SENTINEL_PRESENCE_TIMEOUT", None),
         total_timeout=_get_float("SENTINEL_TOTAL_TIMEOUT", 8.0),
+        pin_echo=os.environ.get("SENTINEL_PIN_ECHO", "mask").lower(),
         face_samples=int(_get_float("SENTINEL_FACE_SAMPLES", 5)),
         face_threshold=_get_float("SENTINEL_FACE_THRESHOLD", 0.55),
         master_pin=os.environ.get("SENTINEL_MASTER_PIN", "0000"),
