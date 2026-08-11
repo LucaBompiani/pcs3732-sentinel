@@ -133,7 +133,7 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
     if candidate is None:
         autorizado, f1, f2 = run_access_attempt(conn, cfg, None, None)
         hal.indicators.signal_denied()  # RF07
-        hal.display.show("Acesso negado", "Face nao reconhecida")
+        hal.display.show("Acesso negado", "Face nao reconh.")
         return autorizado, f1, f2
 
     if lockout.is_locked(conn, candidate):  # RF10
@@ -163,7 +163,8 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
 def run_enrollment(conn, hal, cfg, username):
     """Cadastra (enrola) um novo usuário com os dois fatores (RF08).
 
-    Exige o botão físico e o PIN mestre do operador, coleta ``cfg.face_samples``
+    Exige o gatilho de cadastro (tecla ``A`` no hardware, pois a placa não tem
+    botão livre) e o PIN mestre do operador, coleta ``cfg.face_samples``
     amostras faciais (Fator 1) e associa um segundo fator (PIN e/ou cartão).
 
     Args:
@@ -180,7 +181,7 @@ def run_enrollment(conn, hal, cfg, username):
         hal.display.show("Cadastro", "Usuario existe")
         return False
 
-    hal.display.show("Cadastro", "Pressione botao")
+    hal.display.show("Cadastro", "Tecle A")
     hal.enroll_button.wait_for_press(cfg.factor2_timeout)
 
     hal.display.show("PIN mestre", "do operador")
@@ -209,7 +210,7 @@ def run_enrollment(conn, hal, cfg, username):
         hal.display.show("Cadastro negado", "Sem 2o fator")
         return False
 
-    hal.display.show("Consentimento?", "Confirme no botao")  # RNF04 (LGPD)
+    hal.display.show("Consentimento?", "Confirme: A")  # RNF04 (LGPD)
     hal.enroll_button.wait_for_press(cfg.factor2_timeout)
 
     create_user(conn, username, pin or "", card_uid=card_uid)

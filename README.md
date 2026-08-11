@@ -70,7 +70,27 @@ O `run-pi.sh` carrega o `.env` (sem sobrescrever variáveis já exportadas na sh
 
 > **Por que `--system-site-packages`:** `picamera2`, `libcamera` e `cv2` dependem de bindings C++ compilados contra as bibliotecas do sistema e **não são instaláveis por pip** — vêm do apt. Uma venv isolada (ou um Python gerenciado pelo `uv`) não os enxerga. Por isso `requires-python` é `>=3.11`, o Python do Raspberry Pi OS Bookworm: o backend real precisa rodar no interpretador que tem esses módulos.
 
-Os pinos GPIO usados por cada driver estão definidos no topo dos módulos em `src/sentinel/hal/real/` e devem ser ajustados conforme a montagem física.
+### Pinagem (Freenove Projects Board)
+
+O hardware é a **Freenove Projects Board for Raspberry Pi**: os periféricos vêm soldados, então os GPIOs **não são ajustáveis** — são os do `Tutorial.pdf`. As constantes ficam no topo dos módulos em `src/sentinel/hal/real/` e estão travadas por `tests/test_hal_real_pins.py`.
+
+| Periférico | GPIO (BCM) | Tutorial |
+|---|---|---|
+| Câmera v2 | conector CSI | — |
+| RFID RC522 | SPI0 / CE0 | cap. 25 |
+| LCD1602 | I2C `0x27` (SDA 2, SCL 3), 5V | cap. 19 |
+| Teclado 4x4 — linhas | 16, 20, 21, 26 | cap. 21 |
+| Teclado 4x4 — colunas | 19, 13, 6, 5 | cap. 21 |
+| LED de status | 17 | cap. 1 |
+| Buzzer ativo | 12 | cap. 6 |
+| Servo (atuador) | 18 | cap. 13 |
+| Sensor PIR | 24 (módulo externo) | cap. 22 |
+
+Três restrições da placa (Tutorial, pág. 41) moldaram o projeto:
+
+- **Relé e buzzer ativo dividem o GPIO 12.** Como a montagem não tem a solenoide de 12 V, o atuador é o servo (GPIO 18) e o buzzer fica com o 12. A fábrica **recusa** `SENTINEL_LOCK_TYPE=solenoid` no backend real, com mensagem explicando a troca necessária, em vez de estourar um `GPIOPinInUse` no meio da montagem do HAL.
+- **O touch button (GPIO 26) é a linha 3 do teclado.** Não dá para usar os dois, então o cadastro (RF08) é disparado pela **tecla `A`** — o `EnrollButton` do HAL reaproveita a instância do teclado em vez de reivindicar um GPIO próprio.
+- **A placa tem um único LED (GPIO 17)**, não um par verde/vermelho. O contrato do HAL foi mantido: `led_green` acende contínuo e `led_red` **pisca** o mesmo LED, distinguindo concedido de negado.
 
 ### Configuração (variáveis de ambiente)
 

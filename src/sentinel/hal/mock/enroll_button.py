@@ -19,6 +19,10 @@ class MockEnrollButton:
         return self.default
 
 
-def make(cfg):
-    """Cria o botão de cadastro simulado."""
+def make(cfg, keypad=None):
+    """Cria o botão de cadastro simulado.
+
+    Aceita e ignora ``keypad``: no backend real o gatilho é uma tecla e precisa
+    da instância do teclado, então a fábrica passa o mesmo argumento aos dois.
+    """
     return MockEnrollButton()

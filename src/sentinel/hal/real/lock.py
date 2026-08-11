@@ -2,8 +2,14 @@
 
 import time
 
-# Pino BCM do relé (ajustar conforme a montagem física).
-RELAY_PIN = 26
+# Pino BCM do relé da Freenove Projects Board (Tutorial, cap. 12 "Relay & LED").
+#
+# CONFLITO: este pino é compartilhado com o buzzer ativo (Tutorial, pág. 41,
+# nota 3: "Active buzzer and relay must NOT be used at the same time"). Usar
+# SENTINEL_LOCK_TYPE=solenoid exige mover o buzzer para o passivo (GPIO 4) em
+# :mod:`sentinel.hal.real.indicators`. Com o atuador padrão da montagem atual
+# (servo, GPIO 18) não há conflito.
+RELAY_PIN = 12
 
 
 class RealLock:

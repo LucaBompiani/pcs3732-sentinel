@@ -2,9 +2,16 @@
 
 import time
 
-# Pinos BCM das linhas e colunas (ajustar conforme a montagem física).
-ROW_PINS = [5, 6, 13, 19]
-COL_PINS = [12, 16, 20, 21]
+# Pinos BCM das linhas e colunas, fixos na Freenove Projects Board
+# (Tutorial, cap. 21 "Matrix Keypad"). Não são ajustáveis: o teclado já vem
+# soldado na placa.
+#
+# ATENÇÃO: a linha 3 (GPIO 26) é compartilhada com o touch button da placa
+# (Tutorial, pág. 41, nota 2: "Touch button and keypad must NOT be used at the
+# same time"). Por isso o cadastro é disparado por uma tecla — ver
+# :mod:`sentinel.hal.real.enroll_button`.
+ROW_PINS = [16, 20, 21, 26]
+COL_PINS = [19, 13, 6, 5]
 KEYS = [
     ["1", "2", "3", "A"],
     ["4", "5", "6", "B"],
@@ -33,6 +40,21 @@ class RealKeypad:
                     row.off()
                     return KEYS[r][c]
             row.off()
+        return None
+
+    def wait_for_key(self, accept, timeout=None):
+        """Aguarda uma das teclas em ``accept`` e a retorna, ou ``None``.
+
+        Usado pelo botão de cadastro, que na Projects Board é uma tecla do
+        próprio teclado em vez de um botão dedicado.
+        """
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while deadline is None or time.monotonic() < deadline:
+            key = self._scan_key()
+            if key is not None and key in accept:
+                time.sleep(0.2)  # debounce simples
+                return key
+            time.sleep(0.05)
         return None
 
     def read_pin(self, timeout=None):

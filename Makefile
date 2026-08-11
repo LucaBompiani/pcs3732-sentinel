@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help run run-real run-pi setup-pi check-pi install-pi test clean
+.PHONY: help run run-pi setup-pi check-pi install-pi test clean
 
 ## Lista os alvos disponíveis
 help:
@@ -14,10 +14,6 @@ help:
 ## Roda a CLI com backend mock (qualquer PC)
 run:
 	PYTHONPATH=src uv run --frozen python src/sentinel/app/cli.py
-
-## Roda a CLI com backend real, sem o wrapper de validação
-run-real:
-	SENTINEL_BACKEND=real PYTHONPATH=src uv run --frozen python src/sentinel/app/cli.py
 
 ## Provisiona o Raspberry Pi (apt, SPI/I2C/camera, grupos, venv) — uma vez
 setup-pi:

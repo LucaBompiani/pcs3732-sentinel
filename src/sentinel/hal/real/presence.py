@@ -1,7 +1,9 @@
 """Driver real do sensor de presença PIR (gpiozero)."""
 
-# Pino BCM do sensor PIR (ajustar conforme a montagem física).
-PIR_PIN = 4
+# Pino BCM do sensor PIR HC-SR501 (Tutorial, cap. 22 "Infrared Motion Sensor").
+# O PIR não é soldado na Projects Board: é módulo externo, ligado ao External
+# Port. GPIO 4 NÃO serve — é o buzzer passivo da placa (Tutorial, cap. 6).
+PIR_PIN = 24
 
 
 class RealPresence:

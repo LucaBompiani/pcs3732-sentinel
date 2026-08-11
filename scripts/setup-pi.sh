@@ -20,6 +20,7 @@ CHECK_ONLY=0
 
 NEEDS_REBOOT=0
 FAILURES=0
+UV_NOT_ON_LOGIN_PATH=0
 
 # ---------------------------------------------------------------- utilidades
 
@@ -151,6 +152,15 @@ setup_groups() {
 setup_python() {
     step "4/6 Ambiente Python"
 
+    # Se o uv já foi instalado antes mas a shell atual é anterior à instalação,
+    # o binário existe e só falta no PATH. Procurar evita reinstalar à toa.
+    if ! command -v uv >/dev/null 2>&1; then
+        local d
+        for d in "$HOME/.local/bin" "$HOME/.cargo/bin" /usr/local/bin; do
+            [[ -x "$d/uv" ]] && { export PATH="$d:$PATH"; break; }
+        done
+    fi
+
     # Instalador oficial da Astral (docs.astral.sh/uv). O Raspberry Pi OS não
     # empacota o uv no apt, então esta é a via suportada em arm64/armhf.
     # O instalador acrescenta ~/.local/bin ao PATH nos perfis da shell; o export
@@ -178,6 +188,12 @@ setup_python() {
 
     if command -v uv >/dev/null 2>&1; then
         ok "uv $(uv --version 2>/dev/null | awk '{print $2}') ($(command -v uv))"
+        # Confere se uma shell de login NOVA também acharia o uv. Se não, os
+        # scripts continuam funcionando (eles procuram o binário), mas chamar
+        # `uv` na mão falharia — então avisamos como corrigir.
+        if ! bash -lc 'command -v uv' >/dev/null 2>&1; then
+            UV_NOT_ON_LOGIN_PATH=1
+        fi
     elif (( ! CHECK_ONLY )); then
         fail "uv indisponível após a instalação — abra uma shell nova e rode de novo"
         return 1
@@ -236,21 +252,33 @@ detect_hardware() {
 print_pinout() {
     step "6/6 Pinagem esperada (BCM) — confira a montagem"
     cat <<'PINOUT'
+  Placa: Freenove Projects Board for Raspberry Pi — os periféricos são soldados,
+  os GPIOs abaixo NÃO são ajustáveis (referências ao Tutorial.pdf).
+
   Câmera v2      conector CSI (cabo flat)
-  RFID RC522     SPI0: SDA/CE0=GPIO8  SCK=GPIO11  MOSI=GPIO10  MISO=GPIO9  RST=GPIO25  3V3 (NÃO 5V)
-  Teclado 4x4    linhas  = GPIO 5, 6, 13, 19      (src/sentinel/hal/real/keypad.py)
-                 colunas = GPIO 12, 16, 20, 21
-  LCD1602 I2C    SDA=GPIO2  SCL=GPIO3  addr 0x27  (src/sentinel/hal/real/display.py)
-  LED verde      GPIO 17    LED vermelho GPIO 27   buzzer GPIO 22  (indicators.py)
-  Botão cadastro GPIO 23    (enroll_button.py)
-  Sensor PIR     GPIO 4     (presence.py)
-  Relé/fechadura GPIO 26    (lock.py)
-  Servo (demo)   GPIO 18    — PWM por hardware     (servo_lock.py)
+  RFID RC522     SPI0 / CE0, na própria placa            (cap. 25)
+  LCD1602 I2C    SDA=GPIO2  SCL=GPIO3  addr 0x27  5V     (cap. 19)
+  Teclado 4x4    linhas  = GPIO 16, 20, 21, 26           (cap. 21)
+                 colunas = GPIO 19, 13, 6, 5
+  LED de status  GPIO 17  (único LED da placa)           (cap. 1)
+  Buzzer ativo   GPIO 12                                 (cap. 6)
+  Servo (atuador) GPIO 18 — PWM por hardware             (cap. 13)
+  Sensor PIR     GPIO 24 — módulo externo, External Port (cap. 22)
+  Cadastro       tecla "A" do teclado (a placa não tem botão livre)
+
+  Restrições da placa (pág. 41) que este projeto respeita:
+    - relé (GPIO 12) e buzzer ativo dividem o pino: usamos o servo como atuador
+    - touch button (GPIO 26) é linha do teclado: o cadastro virou uma tecla
+    - servo (GPIO 18) e WS2812: não usamos WS2812
 PINOUT
 }
 
 # -------------------------------------------------------------------- main
 main() {
+
+
+
+    
     printf '%sSentinel — setup do Raspberry Pi%s  (repo: %s)\n' "$c_hdr" "$c_reset" "$REPO_DIR"
     (( CHECK_ONLY )) && printf '%smodo --check: nada será alterado%s\n' "$c_warn" "$c_reset"
 
@@ -272,6 +300,11 @@ main() {
         exit 0
     fi
     ok "setup concluído"
+    if (( UV_NOT_ON_LOGIN_PATH )); then
+        printf '\n  %suv fora do PATH desta shell.%s  make run-pi funciona mesmo assim\n' "$c_warn" "$c_reset"
+        printf '  (os scripts localizam o binário), mas para chamar "uv" na mão:\n'
+        printf '      source ~/.profile     # ou abra uma shell nova / faça login de novo\n'
+    fi
     if (( NEEDS_REBOOT )); then
         printf '\n  %sREINICIE antes de rodar:%s  sudo reboot\n' "$c_warn" "$c_reset"
         printf '  (interfaces do firmware e grupos do usuário só valem após o boot)\n'
