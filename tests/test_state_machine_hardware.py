@@ -68,6 +68,24 @@ def test_face_not_recognized_skips_second_factor(conn):
     assert hal.keypad.read_pin(0) == "1234"
 
 
+def test_blocked_user_skips_second_factor(conn):
+    """RF10: usuario bloqueado nem chega a ter o Fator 2 solicitado."""
+    cfg = dataclasses.replace(CFG, max_failures=1, lockout_seconds=60.0)
+    hal = build_hal(cfg)
+    hal.camera.see("joao")
+    hal.keypad.feed("0000", "1234")  # errado, depois correto
+
+    run_access_cycle(conn, hal, cfg)  # 1a falha ja bloqueia
+    autorizado, f1, f2 = run_access_cycle(conn, hal, cfg)
+
+    assert (autorizado, f1, f2) == (False, True, False)
+    assert hal.lock.unlocks == []
+    assert hal.lock.is_locked() is True
+    assert any("bloqueado" in line.lower() for line, _ in hal.display.buffer)
+    # PIN correto permanece na fila: o Fator 2 nao foi solicitado
+    assert hal.keypad.read_pin(0) == "1234"
+
+
 def test_second_factor_timeout_denies(conn):
     cfg = dataclasses.replace(CFG, factor2_timeout=0.0)
     hal = build_hal(cfg)

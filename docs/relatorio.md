@@ -52,6 +52,9 @@ Projetar e implementar um sistema embarcado de controle de acesso físico com au
 - **RF07:** Negar e sinalizar caso qualquer um dos fatores falhe. Critério de aceite: deve ocorrer LED vermelho, bipe distinto, acesso mantido travado e registro do motivo da falha (qual fator).
 - **RF08:** Cadastrar usuários localmente com os dois fatores (enrolamento). Critério de aceite: o fluxo deve ocorrer por botão físico + PIN mestre de operador, com captura de N amostras faciais e associação do segundo fator (PIN definido ou cartão lido).
 - **RF09:** Registrar eventos com data e hora (tentativa, resultado por fator, acesso concedido/negado e cadastro). Critério de aceite: o log deve ser persistente e consultável após reinício.
+- **RF10:** Bloquear temporariamente o usuário após um número configurável de falhas seguidas do segundo fator, limitando ataques de força bruta. Critério de aceite: atingido o limite, novas tentativas daquele usuário devem ser negadas mesmo com o fator correto, sem que o segundo fator seja solicitado, e devem gerar registro com resultado `BLOQUEADO`; o bloqueio deve expirar sozinho após o prazo configurado, valer apenas para o usuário em questão e sobreviver a um reinício do sistema.
+
+> **Origem do RF10:** sugestão da avaliação por pares da Semana 2 (*Peer Review* — Grupo J, issue #2 do repositório), de bloquear o usuário que erra a autenticação algumas vezes. Optou-se por bloquear o **usuário** e não a fechadura inteira, para que a penalidade não se transforme em negação de serviço contra os demais cadastrados, e por contar apenas falhas do **Fator 2**: uma falha do Fator 1 pode decorrer de iluminação ou ângulo, não de credencial incorreta.
 
 ### 3.2 Requisitos não funcionais
 
@@ -104,6 +107,7 @@ Os dois fatores estão em **série obrigatória (E)**, de modo que a falha em qu
 - Teclado matricial 4×4 e/ou leitor RFID MFRC522 (segundo fator)
 - LCD1602 I2C, LEDs (verde/vermelho), buzzer ativo
 - Módulo relé + fechadura solenoide 12 V (fechadura externa ao kit)
+- Servomotor SG90 (GPIO 18, PWM por hardware): atuador **alternativo, apenas para demonstração**, quando não se dispõe da fechadura de 12 V e da sua fonte independente. Não substitui a solenoide no requisito, pois um servo não é *fail-secure*: em queda de energia ele permanece no ângulo em que estava, enquanto o relé desacionado mantém a solenoide travada (RNF03). A seleção do atuador é feita em tempo de inicialização, por variável de ambiente.
 
 ## 6. Metodologia de desenvolvimento
 
@@ -118,6 +122,7 @@ Nesta primeira entrega, os testes ainda não foram executados, mas a seção a s
 - **RF04/RF05:** Validar que o segundo fator está vinculado ao usuário identificado no Fator 1, não aceitando PIN ou cartão de outro usuário.
 - **RF06/RF07:** Testar a abertura somente quando os dois fatores estiverem corretos e a negação quando um fator falhar isoladamente.
 - **RF08:** Testar o fluxo de cadastro completo, incluindo amostras faciais e segundo fator, além de rejeitar amostras de baixa qualidade.
+- **RF10:** Verificar que N falhas seguidas do segundo fator bloqueiam o usuário, que durante o bloqueio o fator correto também é recusado, que o bloqueio atinge apenas aquele usuário, que expira no prazo configurado e que permanece após reinício do processo.
 - **RNF01:** Estimar FAR/FRR de cada fator isoladamente e da combinação, com um conjunto de teste do grupo.
 - **RNF03:** Simular queda de energia durante a escrita no SQLite e verificar a integridade da base após o reinício.
 - **RNF05:** Medir o tempo total do fluxo completo de autenticação com os dois fatores.

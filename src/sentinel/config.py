@@ -17,6 +17,8 @@ class Config:
     Attributes:
         backend: Backend de hardware, ``"mock"`` (padrão, roda no PC) ou
             ``"real"`` (drivers do Raspberry Pi).
+        lock_type: Atuador do acesso, ``"solenoid"`` (padrão, relé + fechadura
+            solenoide) ou ``"servo"`` (modo de demonstração).
         db_path: Caminho do banco SQLite.
         relay_seconds: Tempo de acionamento da fechadura em segundos (RF06).
         factor2_timeout: Tempo máximo de espera pelo segundo fator (RF04).
@@ -25,9 +27,12 @@ class Config:
         total_timeout: Orçamento total do fluxo de autenticação (RNF05).
         face_samples: Número de amostras faciais coletadas no cadastro (RF08).
         master_pin: PIN mestre do operador exigido no enrolamento (RF08).
+        max_failures: Falhas seguidas do Fator 2 que bloqueiam o usuário (RF10).
+        lockout_seconds: Duração do bloqueio temporário em segundos (RF10).
     """
 
     backend: str
+    lock_type: str
     db_path: str
     relay_seconds: float
     factor2_timeout: float
@@ -35,6 +40,8 @@ class Config:
     total_timeout: float
     face_samples: int
     master_pin: str
+    max_failures: int
+    lockout_seconds: float
 
 
 def _get_float(name, default):
@@ -66,6 +73,7 @@ def load_config():
     """
     return Config(
         backend=os.environ.get("SENTINEL_BACKEND", "mock"),
+        lock_type=os.environ.get("SENTINEL_LOCK_TYPE", "solenoid"),
         db_path=os.environ.get("SENTINEL_DB_PATH", "sentinel.db"),
         relay_seconds=_get_float("SENTINEL_RELAY_SECONDS", 5.0),
         factor2_timeout=_get_float("SENTINEL_FACTOR2_TIMEOUT", 15.0),
@@ -73,4 +81,6 @@ def load_config():
         total_timeout=_get_float("SENTINEL_TOTAL_TIMEOUT", 8.0),
         face_samples=int(_get_float("SENTINEL_FACE_SAMPLES", 5)),
         master_pin=os.environ.get("SENTINEL_MASTER_PIN", "0000"),
+        max_failures=int(_get_float("SENTINEL_MAX_FAILURES", 3)),
+        lockout_seconds=_get_float("SENTINEL_LOCKOUT_SECONDS", 60.0),
     )

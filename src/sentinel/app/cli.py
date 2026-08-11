@@ -14,6 +14,7 @@ from sentinel.config import load_config
 from sentinel.hal.factory import build_hal
 from sentinel.infra.db import connect
 from sentinel.infra.users_repository import create_user, user_exists
+from sentinel.services.lockout import is_locked
 
 MENU = """
 1) Cadastrar usuario (Fator 1 + Fator 2)
@@ -36,7 +37,7 @@ def cadastrar(conn):
     print(f"Usuario '{username}' cadastrado.")
 
 
-def simular_acesso(conn):
+def simular_acesso(conn, cfg):
     """Simula uma tentativa fornecendo os fatores manualmente."""
     presented_name = input(
         "Nome reconhecido pela camera (Fator 1, mock - vazio = ninguem): "
@@ -44,12 +45,16 @@ def simular_acesso(conn):
     pin = input("PIN informado (Fator 2, vazio = nenhum): ").strip() or None
     card_uid = input("UID do cartao (Fator 2, vazio = nenhum): ").strip() or None
 
+    bloqueado = presented_name is not None and is_locked(conn, presented_name)
+
     autorizado, fator1_ok, fator2_ok = run_access_attempt(
-        conn, presented_name, pin, card_uid=card_uid
+        conn, cfg, presented_name, pin, card_uid=card_uid
     )
 
     print(f"Fator 1 (facial): {'OK' if fator1_ok else 'FALHOU'}")
     print(f"Fator 2 (PIN/RFID): {'OK' if fator2_ok else 'FALHOU'}")
+    if bloqueado:
+        print(f"USUARIO BLOQUEADO ({cfg.lockout_seconds:.0f}s apos falhas seguidas)")
     print("ACESSO AUTORIZADO" if autorizado else "ACESSO NEGADO")
 
 
@@ -77,7 +82,7 @@ def main():
             if opcao == "1":
                 cadastrar(conn)
             elif opcao == "2":
-                simular_acesso(conn)
+                simular_acesso(conn, cfg)
             elif opcao == "3":
                 ciclo_hardware(conn, hal, cfg)
             elif opcao == "4":

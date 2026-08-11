@@ -25,6 +25,7 @@ def test_defaults():
     cfg = _with_env(
         {
             "SENTINEL_BACKEND": None,
+            "SENTINEL_LOCK_TYPE": None,
             "SENTINEL_DB_PATH": None,
             "SENTINEL_RELAY_SECONDS": None,
             "SENTINEL_FACTOR2_TIMEOUT": None,
@@ -32,9 +33,12 @@ def test_defaults():
             "SENTINEL_TOTAL_TIMEOUT": None,
             "SENTINEL_FACE_SAMPLES": None,
             "SENTINEL_MASTER_PIN": None,
+            "SENTINEL_MAX_FAILURES": None,
+            "SENTINEL_LOCKOUT_SECONDS": None,
         }
     )
     assert cfg.backend == "mock"
+    assert cfg.lock_type == "solenoid"
     assert cfg.db_path == "sentinel.db"
     assert cfg.relay_seconds == 5.0
     assert cfg.factor2_timeout == 15.0
@@ -42,6 +46,8 @@ def test_defaults():
     assert cfg.total_timeout == 8.0
     assert cfg.face_samples == 5
     assert cfg.master_pin == "0000"
+    assert cfg.max_failures == 3
+    assert cfg.lockout_seconds == 60.0
 
 
 def test_backend_and_timeouts_parsed():
@@ -55,6 +61,19 @@ def test_backend_and_timeouts_parsed():
     assert cfg.backend == "real"
     assert cfg.relay_seconds == 3.5
     assert cfg.face_samples == 8
+
+
+def test_lockout_and_lock_type_parsed():
+    cfg = _with_env(
+        {
+            "SENTINEL_LOCK_TYPE": "servo",
+            "SENTINEL_MAX_FAILURES": "5",
+            "SENTINEL_LOCKOUT_SECONDS": "120",
+        }
+    )
+    assert cfg.lock_type == "servo"
+    assert cfg.max_failures == 5
+    assert cfg.lockout_seconds == 120.0
 
 
 def test_presence_timeout_none_keyword():

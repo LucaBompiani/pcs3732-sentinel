@@ -1,5 +1,6 @@
-# Arquitetura física — proposta preliminar (Semana 1)
-# Segundo fator (teclado 4x4 vs RFID) ainda em aberto — ver docs/relatorio.md secao 3.
+# Arquitetura física
+# Segundo fator: teclado 4x4 E leitor RFID (alternativos entre si em cada tentativa).
+# Atuador: rele + solenoide (fail-secure, requisito) OU servo (apenas demonstracao).
 
 rpi: "Raspberry Pi 3 Model B+\n(BCM2837B0, 4x Cortex-A53)" {
   shape: rectangle
@@ -17,9 +18,8 @@ botao_cadastro: "Botao de\ncadastro" {
   shape: rectangle
 }
 
-fator2: "Fator 2 (a definir)\nTeclado 4x4 ou\nleitor RFID MFRC522" {
+fator2: "Fator 2\nTeclado 4x4 e\nleitor RFID MFRC522" {
   shape: rectangle
-  style.stroke-dash: 3
 }
 
 lcd: "LCD1602\n(I2C)" {
@@ -50,6 +50,11 @@ fonte12v: "Fonte 12V\nindependente" {
   shape: rectangle
 }
 
+servo: "Servo SG90\n[atuador alternativo\napenas demonstracao]" {
+  shape: rectangle
+  style.stroke-dash: 3
+}
+
 pir -> rpi: "GPIO (IRQ)"
 botao_cadastro -> rpi: "GPIO (IRQ)"
 fator2 -> rpi: "GPIO / I2C / SPI"
@@ -61,3 +66,6 @@ rpi -> buzzer: "GPIO"
 rpi -> rele: "GPIO"
 rele -> fechadura: "12V"
 fonte12v -> fechadura: "alimentacao"
+rpi -> servo: "PWM (GPIO18)" {
+  style.stroke-dash: 3
+}

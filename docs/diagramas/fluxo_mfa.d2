@@ -1,14 +1,18 @@
-# Fluxo de autenticacao MFA — proposta preliminar (Semana 1)
+# Fluxo de autenticacao MFA
 # Diferenca-chave vs. arquitetura anterior (so facial): fatores em serie obrigatoria (E),
 # nao em esquema de fallback (OU). Timeouts/limiares ainda nao calibrados.
+# RF10: bloqueio temporario por usuario apos N falhas seguidas do Fator 2.
 
 inicio: "Inicializacao\n(carrega base de usuarios)" { shape: oval }
 vigia: "VIGIA\n(CPU ociosa, aguarda PIR)" { shape: rectangle }
 captura: "Captura quadros" { shape: rectangle }
 fator1_check: "Fator 1: face detectada\ne reconhecida na base?" { shape: diamond }
+bloqueio_check: "Usuario bloqueado?\n(RF10)" { shape: diamond }
+bloqueado: "BLOQUEADO: LED vermelho\nLCD usuario bloqueado\n(Fator 2 nao e solicitado)" { shape: rectangle }
 fator2_pede: "Solicita Fator 2\n(PIN / cartao)" { shape: rectangle }
 fator2_check: "Fator 2 corresponde\nao usuario do Fator 1?" { shape: diamond }
-atua: "ATUA: rele ON 5s\nLED verde, bipe, LCD saudacao" { shape: rectangle }
+conta_falha: "Incrementa falhas do usuario;\nno limite, bloqueia por T segundos" { shape: rectangle }
+atua: "ATUA: rele ON 5s (ou servo)\nLED verde, bipe, LCD saudacao" { shape: rectangle }
 nega: "NEGA: LED vermelho\nbipe duplo, LCD acesso negado" { shape: rectangle }
 log_evento: "Log: evento\n(fator1, fator2, resultado)" { shape: rectangle }
 cadastro: "Modo CADASTRO\n(botao fisico + PIN mestre)" { shape: rectangle }
@@ -18,10 +22,14 @@ vigia -> captura: "interrupcao PIR"
 vigia -> cadastro: "botao cadastro"
 captura -> fator1_check
 fator1_check -> nega: "nao identificado\n(timeout ou sem match)"
-fator1_check -> fator2_pede: "candidato identificado"
+fator1_check -> bloqueio_check: "candidato identificado"
+bloqueio_check -> bloqueado: "sim (prazo vigente)"
+bloqueio_check -> fator2_pede: "nao (ou prazo expirado)"
 fator2_pede -> fator2_check
-fator2_check -> nega: "PIN/cartao invalido\nou nao corresponde ao usuario"
-fator2_check -> atua: "valido"
+fator2_check -> conta_falha: "PIN/cartao invalido\nou nao corresponde ao usuario"
+fator2_check -> atua: "valido (zera falhas)"
+conta_falha -> nega
+bloqueado -> log_evento
 atua -> log_evento -> vigia
 nega -> log_evento
 cadastro -> vigia

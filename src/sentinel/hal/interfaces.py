@@ -31,10 +31,14 @@ Indicators (LEDs + buzzer)
     falha. ``led_green(on)`` / ``led_red(on)`` / ``beep(pattern)``: controle
     granular.
 
-Lock (relé + fechadura solenoide)
+Lock (relé + fechadura solenoide, ou servomotor)
     ``unlock(seconds)``: libera a fechadura pelo tempo indicado e retorna ao
     estado seguro (fail-secure). ``lock()``: força travamento.
     ``is_locked() -> bool``: estado atual.
+    Dois atuadores cumprem este contrato, escolhidos por ``cfg.lock_type``:
+    ``solenoid`` (relé, fail-secure, atuador do requisito) e ``servo`` (apenas
+    demonstração — um servo não volta sozinho ao estado travado em queda de
+    energia).
 
 EnrollButton (botão físico de cadastro)
     ``wait_for_press(timeout) -> bool``: aguarda o pressionar do botão.

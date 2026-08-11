@@ -10,6 +10,10 @@ def build_hal(cfg):
     ``real`` (e suas bibliotecas de hardware) só seja tocado quando de fato
     selecionado — mantendo o import do pacote seguro em um PC.
 
+    O atuador do acesso vem de ``cfg.lock_type``: relé + fechadura solenoide
+    (padrão) ou servomotor (demonstração). Ambos cumprem o mesmo contrato, de
+    modo que o restante do sistema não muda.
+
     Args:
         cfg: Instância de :class:`sentinel.config.Config`.
 
@@ -26,6 +30,7 @@ def build_hal(cfg):
             lock,
             presence,
             rfid,
+            servo_lock,
         )
     else:
         from sentinel.hal.mock import (
@@ -37,7 +42,10 @@ def build_hal(cfg):
             lock,
             presence,
             rfid,
+            servo_lock,
         )
+
+    actuator = servo_lock if cfg.lock_type == "servo" else lock
 
     return Hal(
         presence=presence.make(cfg),
@@ -46,6 +54,6 @@ def build_hal(cfg):
         rfid=rfid.make(cfg),
         display=display.make(cfg),
         indicators=indicators.make(cfg),
-        lock=lock.make(cfg),
+        lock=actuator.make(cfg),
         enroll_button=enroll_button.make(cfg),
     )

@@ -97,6 +97,31 @@ def set_card_uid(conn, username, card_uid):
     return True
 
 
+def get_lockout(conn, username):
+    """Retorna o estado de bloqueio de um usuário (RF10).
+
+    Returns:
+        Tupla ``(fail_count, locked_until)``, onde ``locked_until`` é um
+        timestamp ISO-8601 UTC ou ``None``; ``None`` se o usuário não existir.
+    """
+    row = conn.execute(
+        "SELECT fail_count, locked_until FROM users WHERE username = ?",
+        (username,),
+    ).fetchone()
+    if row is None:
+        return None
+    return row[0], row[1]
+
+
+def set_lockout(conn, username, fail_count, locked_until):
+    """Grava o contador de falhas e o fim do bloqueio de um usuário (RF10)."""
+    conn.execute(
+        "UPDATE users SET fail_count = ?, locked_until = ? WHERE username = ?",
+        (fail_count, locked_until, username),
+    )
+    conn.commit()
+
+
 def add_face_embedding(conn, username, embedding):
     """Persiste um vetor de características facial (embedding) do usuário.
 

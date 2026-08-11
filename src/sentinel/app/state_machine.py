@@ -17,18 +17,20 @@ from sentinel.infra.users_repository import (
     create_user,
     user_exists,
 )
-from sentinel.services import face_recognition, second_factor
+from sentinel.services import face_recognition, lockout, second_factor
 from sentinel.services.decision import authorize
 
 
-def run_access_attempt(conn, presented_name, pin=None, *, card_uid=None):
+def run_access_attempt(conn, cfg, presented_name, pin=None, *, card_uid=None):
     """Núcleo puro: decide e registra uma tentativa de acesso.
 
-    Executa Fator 1 (reconhecimento) → Fator 2 (PIN ou cartão, apenas se o
-    Fator 1 identificou) → decisão (E lógico) → log de auditoria.
+    Executa Fator 1 (reconhecimento) → bloqueio por tentativas (RF10) →
+    Fator 2 (PIN ou cartão, apenas se o Fator 1 identificou e o usuário não
+    estiver bloqueado) → decisão (E lógico) → log de auditoria.
 
     Args:
         conn: Conexão SQLite.
+        cfg: Configuração (limite de falhas e duração do bloqueio).
         presented_name: Identidade candidata do Fator 1.
         pin: PIN do segundo fator, ou ``None``.
         card_uid: UID de cartão do segundo fator, ou ``None``.
@@ -39,11 +41,26 @@ def run_access_attempt(conn, presented_name, pin=None, *, card_uid=None):
     fator1_username = face_recognition.recognize(conn, presented_name)
     fator1_ok = fator1_username is not None
 
+    if fator1_ok and lockout.is_locked(conn, fator1_username):
+        # Fator 2 nem é avaliado: o fator correto também é recusado (RF10).
+        log_event(
+            conn,
+            username=fator1_username,
+            fator1_ok=True,
+            fator2_ok=False,
+            resultado="BLOQUEADO",
+        )
+        return False, True, False
+
     fator2_ok = False
     if fator1_ok:
         fator2_ok = second_factor.verify(
             conn, fator1_username, pin, card_uid=card_uid
         )
+        if fator2_ok:
+            lockout.reset_failures(conn, fator1_username)
+        else:
+            lockout.register_failure(conn, fator1_username, cfg)
 
     autorizado = authorize(fator1_username, fator2_ok)
     resultado = "AUTORIZADO" if autorizado else "NEGADO"
@@ -90,9 +107,10 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
     """Fluxo físico completo de uma tentativa de acesso.
 
     Sequência: aguarda presença (RF01) → captura e reconhece (RF02/RF03) →
-    solicita o segundo fator com timeout apenas se o Fator 1 identificou (RF04)
-    → decide e registra (RF05/RF09) → aciona fechadura + LED verde (RF06) ou
-    sinaliza negação mantendo travado (RF07).
+    solicita o segundo fator com timeout apenas se o Fator 1 identificou e o
+    usuário não estiver bloqueado (RF04/RF10) → decide e registra (RF05/RF09)
+    → aciona fechadura + LED verde (RF06) ou sinaliza negação mantendo travado
+    (RF07).
 
     Args:
         conn: Conexão SQLite.
@@ -113,16 +131,22 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
     candidate = recognizer.identify(conn, frame)  # RF03
 
     if candidate is None:
-        autorizado, f1, f2 = run_access_attempt(conn, None, None)
+        autorizado, f1, f2 = run_access_attempt(conn, cfg, None, None)
         hal.indicators.signal_denied()  # RF07
         hal.display.show("Acesso negado", "Face nao reconhecida")
+        return autorizado, f1, f2
+
+    if lockout.is_locked(conn, candidate):  # RF10
+        autorizado, f1, f2 = run_access_attempt(conn, cfg, candidate)
+        hal.indicators.signal_denied()
+        hal.display.show("Usuario bloqueado", candidate)
         return autorizado, f1, f2
 
     hal.display.show("Fator 2", "PIN ou cartao")  # RF04
     pin, card_uid = read_second_factor(hal, cfg.factor2_timeout)
 
     autorizado, f1, f2 = run_access_attempt(  # RF05
-        conn, candidate, pin, card_uid=card_uid
+        conn, cfg, candidate, pin, card_uid=card_uid
     )
 
     if autorizado:

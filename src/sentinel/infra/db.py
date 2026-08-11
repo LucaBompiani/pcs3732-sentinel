@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
     pin_hash TEXT NOT NULL,
     salt TEXT NOT NULL DEFAULT '',
-    card_uid_hash TEXT
+    card_uid_hash TEXT,
+    fail_count INTEGER NOT NULL DEFAULT 0,
+    locked_until TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (
@@ -34,6 +36,8 @@ _ADDED_COLUMNS = {
     "users": [
         ("salt", "TEXT NOT NULL DEFAULT ''"),
         ("card_uid_hash", "TEXT"),
+        ("fail_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("locked_until", "TEXT"),
     ],
     "events": [
         ("tipo", "TEXT NOT NULL DEFAULT 'ACESSO'"),

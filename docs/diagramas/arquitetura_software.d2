@@ -1,4 +1,4 @@
-# Arquitetura de software (camadas) — proposta preliminar (Semana 1)
+# Arquitetura de software (camadas)
 # Reflete src/sentinel/{app,services,infra}. Simplificado: setas so entre
 # camadas adjacentes, exceto o miolo da decisao MFA (destaque proposital).
 
@@ -13,12 +13,16 @@ aplicacao: "Aplicacao" {
 servicos: "Servicos" {
   style.fill: "#e6f4ea"
   reconhecimento_facial: "Fator 1\nReconhecimento facial" { shape: rectangle }
-  verificacao_fator2: "Fator 2\nPIN / RFID (a definir)" { shape: rectangle }
+  bloqueio: "Bloqueio por tentativas\n(RF10)" { shape: rectangle }
+  verificacao_fator2: "Fator 2\nPIN / RFID" { shape: rectangle }
   decisao_mfa: "Decisao MFA\n(E: Fator 1 E Fator 2)" { shape: rectangle; style.stroke-width: 2 }
   auditoria: "Log / auditoria" { shape: rectangle }
 
+  reconhecimento_facial -> bloqueio
+  bloqueio -> verificacao_fator2: "se liberado"
   reconhecimento_facial -> decisao_mfa
   verificacao_fator2 -> decisao_mfa
+  verificacao_fator2 -> bloqueio: "falha: conta / sucesso: zera"
   decisao_mfa -> auditoria
 }
 
