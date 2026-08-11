@@ -113,8 +113,7 @@ Três restrições da placa (Tutorial, pág. 41) moldaram o projeto:
 | `SENTINEL_FACE_SAMPLES` | `5` | Amostras faciais coletadas no cadastro (RF08) |
 | `SENTINEL_FACE_ATTEMPTS` | `10` | Quadros por tentativa de acesso (rajada) |
 | `SENTINEL_FACE_INTERVAL` | `0.3` | Intervalo entre quadros da rajada, em segundos |
-| `SENTINEL_FACE_PREVIEW` | `web` | Exibe a captura: `web`, `window`, `file`, `ascii` ou `off` |
-| `SENTINEL_WEB_PORT` | `8080` | Porta do painel web |
+| `SENTINEL_FACE_PREVIEW` | `gui` | Exibe a captura: `gui`, `window`, `file`, `ascii` ou `off` |
 | `SENTINEL_FACE_THRESHOLD` | `0.55` | Distância máxima para aceitar um rosto (RF03) |
 | `SENTINEL_MASTER_PIN` | `0000` | PIN mestre do operador para enrolamento (RF08) |
 | `SENTINEL_MAX_FAILURES` | `3` | Falhas seguidas do 2º fator até bloquear (RF10) |
@@ -138,15 +137,19 @@ No acesso, a identificação usa uma **rajada** de `SENTINEL_FACE_ATTEMPTS` quad
 
 > Ainda assim, mais tentativas significam mais chances de um falso positivo por acesso. Se aumentar `SENTINEL_FACE_ATTEMPTS`, compense verificando o limiar.
 
-### Painel web
+### Aplicativo de janela
 
-`make run-pi` sobe um painel em `http://<ip-do-pi>:8080` que mostra **a foto de cada captura** — as 5 do cadastro e as do acesso — com o retângulo do rosto detectado, o espelho do LCD e a faixa das capturas anteriores.
+`make run-pi` abre uma janela (Tkinter) que substitui a CLI: mostra **a foto de cada captura** com o retângulo do rosto detectado, espelha o LCD e oferece em botões o ciclo de acesso, o cadastro por hardware, o cadastro manual e a simulação de tentativa, além de um registro do que aconteceu.
 
-A interface é escrita em Python com [NiceGUI](https://nicegui.io) (que renderiza Vue/Quasar) e servida por FastAPI/uvicorn numa **thread daemon**: a autenticação nunca espera pelo painel, e o navegador é opcional.
+Tkinter vem da biblioteca padrão (no Raspberry Pi OS, pacote `python3-tk`): nenhuma dependência nova, nenhum navegador, nenhum servidor.
 
-As imagens ficam **apenas em memória**, num buffer de 8 capturas — nada é gravado em disco, então o painel não abre exceção ao RNF04.
+As operações rodam numa **thread de trabalho** — um ciclo de acesso espera presença, rosto e segundo fator, o que congelaria a janela se rodasse na thread da interface. A thread nunca toca em widgets: publica numa fila que a thread do Tk consome.
 
-Outros modos, por `SENTINEL_FACE_PREVIEW`: `window` (janela do OpenCV no próprio Pi, exige monitor), `file` (grava JPEG em `/tmp/sentinel-preview`), `ascii` (desenha o recorte no terminal) e `off`.
+Exige monitor ligado ao Pi. Numa sessão SSH sem `DISPLAY`, o `run-pi.sh` detecta e abre a CLI; `./scripts/run-pi.sh --cli` força o terminal. No PC, `make run` abre a janela e `make run-cli` o terminal.
+
+As imagens ficam **apenas em memória** — nada é gravado em disco, então a janela não abre exceção ao RNF04.
+
+Outros modos, por `SENTINEL_FACE_PREVIEW`: `window` (janela avulsa do OpenCV), `file` (grava JPEG em `/tmp/sentinel-preview`), `ascii` (desenha o recorte no terminal) e `off`.
 
 > `file` **grava imagens de rosto em disco**, ao contrário de todo o resto do sistema. É modo de depuração: use temporariamente e apague o diretório, senão a afirmação de privacidade (RNF04) deixa de valer.
 

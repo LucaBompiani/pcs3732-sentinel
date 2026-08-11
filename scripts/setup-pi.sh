@@ -247,8 +247,8 @@ setup_python() {
         (( CHECK_ONLY )) || ok ".venv criada"
     fi
 
-    # Base (nicegui/fastapi/uvicorn, do painel web) + --extra pi (gpiozero,
-    # mfrc522, spidev, RPLCD, RPi.GPIO).
+    # --extra pi: gpiozero, mfrc522, spidev, RPLCD, RPi.GPIO. A interface usa
+    # Tkinter, que vem do apt (python3-tk), não do pip.
     # --inexact: preserva os pacotes do sistema visíveis na venv.
     run uv sync --project "$REPO_DIR" --extra pi --inexact
     (( CHECK_ONLY )) || ok "dependências Python instaladas"

@@ -14,9 +14,11 @@ make diag-camera     # se a câmera estiver em dúvida
 make run-pi          # sobe a aplicação
 ```
 
-O menu aparece **no terminal**; os avisos ao usuário aparecem **no LCD**. As duas
-telas são usadas ao mesmo tempo: o operador digita no terminal (nome do usuário),
-a pessoa sendo cadastrada interage com o teclado, a câmera e o leitor RFID.
+A janela do aplicativo abre no monitor do Pi; os avisos ao usuário aparecem
+também **no LCD**. O operador usa a janela (nome do usuário, botões), e a pessoa
+sendo cadastrada interage com o teclado, a câmera e o leitor RFID.
+
+No terminal (`--cli`) o mesmo está no menu:
 
 ```
 1) Cadastrar usuario (Fator 1 + Fator 2)     <- só banco, sem hardware
@@ -99,27 +101,37 @@ Para a detecção funcionar: rosto **frontal**, sem contraluz, a ~40–60 cm da
 câmera, sem óculos escuros ou máscara. O detector Haar é frontal — rosto muito
 inclinado não é encontrado.
 
-### Painel web — veja a foto de cada captura
+### A janela do aplicativo
 
-Ao subir com `make run-pi`, abra no navegador de qualquer máquina da rede:
-
-```
-http://<ip-do-pi>:8080
-```
-
-(o IP sai de `hostname -I` no Pi). O painel mostra:
+`make run-pi` abre a janela do Sentinel no monitor do Pi. Ela substitui o menu
+de texto — tudo está em botões — e mostra:
 
 - **a foto** de cada captura, com o retângulo verde sobre o rosto detectado
 - o rótulo — `Cadastro: ana` ou `Verificação de acesso`
 - o **espelho do LCD**, com as mesmas duas linhas do display
 - a faixa das capturas anteriores
 
-É a forma mais prática de acompanhar cadastro e acesso: as 5 fotos do cadastro
-aparecem uma a uma, e no acesso você vê exatamente qual quadro da rajada foi
-usado.
+As 5 fotos do cadastro aparecem uma a uma; no acesso você vê qual quadro da
+rajada foi usado.
 
-> As imagens ficam só na memória do processo (buffer de 8) — nada vai para o
-> disco, então o painel não abre exceção ao RNF04. Ao encerrar, somem.
+Os botões:
+
+| Botão | O que faz |
+|---|---|
+| **Ciclo de acesso** | fluxo completo pelo hardware (presença → rosto → 2º fator) |
+| **Cadastrar usuário** | enrolamento por hardware (tecla `A`, PIN mestre, 5 fotos) |
+| **Cadastro manual** | cria usuário só no banco, sem câmera — para preparar a demo |
+| **Simular tentativa** | testa a lógica digitando os fatores, sem tocar no hardware |
+
+Enquanto uma operação roda, os botões ficam travados: o hardware é único e duas
+operações simultâneas disputariam câmera e teclado.
+
+> A janela precisa de monitor ligado ao Pi. Numa sessão SSH sem `DISPLAY`, o
+> `run-pi.sh` detecta e abre a CLI de texto; `./scripts/run-pi.sh --cli` força o
+> terminal.
+
+> As imagens ficam só na memória do processo — nada vai para o disco, então a
+> janela não abre exceção ao RNF04. Ao encerrar, somem.
 
 ### Outros modos de visualização
 
@@ -270,8 +282,9 @@ de expressão e ângulo (não 5 fotos idênticas).
 | Servo não gira | alimentação insuficiente | servo em fonte externa, GND comum com o Pi |
 | Câmera não detectada | pilha legada, cabo, sem reboot | `make diag-camera` |
 | `Cascata de Haar não encontrada` | pacote `opencv-data` ausente | `sudo apt install -y opencv-data` |
-| Painel não abre no navegador | firewall, ou IP errado | `hostname -I` no Pi; testar `curl localhost:8080` |
-| Painel abre mas sem foto | ainda não houve captura | rodar a opção 3 ou 4 do menu |
+| Janela não abre | sem monitor / sessão SSH | usar `--cli`, ou ligar monitor no Pi |
+| `no display name` / `_tkinter` | falta `python3-tk` | `sudo apt install -y python3-tk` |
+| Janela abre mas sem foto | ainda não houve captura | clicar em "Ciclo de acesso" ou "Cadastrar usuário" |
 
 ---
 

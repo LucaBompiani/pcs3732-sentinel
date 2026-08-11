@@ -69,16 +69,21 @@ def _migrate(conn):
     conn.commit()
 
 
-def connect(db_path):
+def connect(db_path, check_same_thread=True):
     """Abre uma conexão SQLite garantindo schema e migração aplicados.
 
     Args:
         db_path: Caminho do arquivo do banco, ou ``":memory:"``.
+        check_same_thread: Quando ``False``, permite usar a conexão em outra
+            thread além da que a criou. A interface gráfica precisa disso: a
+            conexão nasce na thread do Tk e as operações rodam numa thread de
+            trabalho, para não congelar a janela. Só é seguro porque a janela
+            serializa as operações — nunca há duas em andamento.
 
     Returns:
         Conexão :class:`sqlite3.Connection` com o schema criado e migrado.
     """
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=check_same_thread)
     conn.executescript(SCHEMA)
     _migrate(conn)
     return conn

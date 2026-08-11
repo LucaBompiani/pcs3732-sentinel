@@ -51,7 +51,12 @@ class SentinelApp:
 
     def __init__(self, cfg, conn=None, hal=None, root=None):
         self.cfg = cfg
-        self.conn = conn if conn is not None else connect(cfg.db_path)
+        # check_same_thread=False: a conexão nasce aqui, na thread do Tk, mas
+        # as operações rodam na thread de trabalho. É seguro porque a janela
+        # serializa as ações (ver ``_executar``): nunca há duas em andamento.
+        self.conn = conn if conn is not None else connect(
+            cfg.db_path, check_same_thread=False
+        )
         self.hal = hal if hal is not None else build_hal(cfg)
 
         # Fila thread-safe: a thread de trabalho publica, o Tk consome.
@@ -351,13 +356,15 @@ class SentinelApp:
         nome = self._perguntar("Cadastro manual", "Nome do usuário:")
         if not nome:
             return
-        if user_exists(self.conn, nome):
-            self.log_line(f"✗ Usuário '{nome}' já existe", "erro")
-            return
         pin = self._perguntar("Cadastro manual", f"PIN de {nome}:") or ""
         cartao = self._perguntar("Cadastro manual", "UID do cartão (vazio = sem cartão):")
 
         def corpo():
+            # Toda consulta ao banco fica na thread de trabalho, para o acesso
+            # ao SQLite acontecer sempre a partir da mesma thread.
+            if user_exists(self.conn, nome):
+                self.log_line(f"✗ Usuário '{nome}' já existe", "erro")
+                return
             create_user(self.conn, nome, pin, card_uid=cartao or None)
             self.log_line(f"✓ Usuário '{nome}' criado (sem amostras faciais)", "ok")
 

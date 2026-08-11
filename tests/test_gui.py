@@ -6,6 +6,7 @@ headless) os testes sao pulados: sem DISPLAY o proprio ``tkinter.Tk()`` falha, e
 isso nao e defeito do codigo.
 """
 
+import dataclasses
 import struct
 import time
 import zlib
@@ -53,10 +54,11 @@ def png(largura, altura, cor=(200, 120, 60)):
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     raiz = tk.Tk()
     raiz.withdraw()  # nao piscar janela durante a suite
-    aplicacao = SentinelApp(load_config(), conn=None, root=raiz)
+    cfg = dataclasses.replace(load_config(), db_path=str(tmp_path / "gui.db"))
+    aplicacao = SentinelApp(cfg, conn=None, root=raiz)
     yield aplicacao
     raiz.destroy()
 
@@ -201,3 +203,54 @@ def test_erro_na_acao_vai_para_o_log_sem_derrubar_a_janela(app):
     conteudo = app.log.get("1.0", "end")
     assert "RuntimeError" in conteudo and "falha simulada" in conteudo
     assert all(str(b["state"]) == "normal" for b in app._botoes)  # destravou
+
+
+# --------------------------------------------------------- SQLite entre threads
+
+def test_banco_pode_ser_usado_na_thread_de_trabalho(app):
+    # Regressao de "SQLite objects created in a thread can only be used in that
+    # same thread": a conexao nasce na thread do Tk e as acoes rodam noutra.
+    from src.sentinel.infra.users_repository import create_user, user_exists
+
+    resultado = {}
+
+    def corpo():
+        create_user(app.conn, "ana", "1234")
+        resultado["existe"] = user_exists(app.conn, "ana")
+
+    app._executar("gravar no banco", corpo)
+    _processar(app, ciclos=8)
+
+    assert resultado.get("existe") is True
+    conteudo = app.log.get("1.0", "end")
+    assert "ProgrammingError" not in conteudo
+    assert "same thread" not in conteudo
+
+
+def test_simular_tentativa_consulta_o_banco_de_outra_thread(app, monkeypatch):
+    from src.sentinel.infra.users_repository import create_user
+
+    create_user(app.conn, "joao", "1234")
+    monkeypatch.setattr(app, "_perguntar", lambda titulo, msg:
+                        {"Nome": "joao", "PIN": "1234"}.get(msg.split()[0], ""))
+
+    app.acao_simular()
+    _processar(app, ciclos=8)
+
+    conteudo = app.log.get("1.0", "end")
+    assert "same thread" not in conteudo
+    assert "ACESSO" in conteudo
+
+
+def test_cadastro_manual_verifica_duplicata_na_thread_de_trabalho(app, monkeypatch):
+    from src.sentinel.infra.users_repository import create_user
+
+    create_user(app.conn, "ana", "1111")
+    monkeypatch.setattr(app, "_perguntar", lambda titulo, msg: "ana" if "Nome" in msg else "2222")
+
+    app.acao_cadastro_manual()
+    _processar(app, ciclos=8)
+
+    conteudo = app.log.get("1.0", "end")
+    assert "já existe" in conteudo
+    assert "same thread" not in conteudo
