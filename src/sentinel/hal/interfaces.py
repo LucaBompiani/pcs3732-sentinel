@@ -15,8 +15,12 @@ Camera
     (identidade, usada pelo reconhecedor mock) e/ou dados de imagem.
 
 Keypad (teclado matricial 4x4)
-    ``read_pin(timeout) -> str | None``: lê um PIN digitado, ou ``None`` no
-    timeout.
+    ``read_pin(timeout, on_change=None) -> str | None``: lê um PIN digitado, ou
+    ``None`` no timeout. ``on_change`` é chamado com os dígitos acumulados a
+    cada tecla, para eco no display. Dígitos não confirmados permanecem no
+    buffer da instância entre chamadas, o que permite ler o teclado em polling
+    com ``timeout=0``.
+    ``reset()``: descarta o buffer, para uma nova leitura começar limpa.
 
 Rfid (leitor MFRC522)
     ``read_uid(timeout) -> str | None``: lê o UID de um cartão, ou ``None`` no

@@ -109,6 +109,7 @@ Três restrições da placa (Tutorial, pág. 41) moldaram o projeto:
 | `SENTINEL_FACTOR2_TIMEOUT` | `15.0` | Timeout de espera do 2º fator (RF04) |
 | `SENTINEL_PRESENCE_TIMEOUT` | *(bloqueia)* | Timeout de espera por presença |
 | `SENTINEL_TOTAL_TIMEOUT` | `8.0` | Orçamento total de autenticação (RNF05) |
+| `SENTINEL_PIN_ECHO` | `mask` | Eco do PIN no display: `mask`, `plain` ou `off` |
 | `SENTINEL_FACE_SAMPLES` | `5` | Amostras faciais coletadas no cadastro (RF08) |
 | `SENTINEL_FACE_THRESHOLD` | `0.55` | Distância máxima para aceitar um rosto (RF03) |
 | `SENTINEL_MASTER_PIN` | `0000` | PIN mestre do operador para enrolamento (RF08) |

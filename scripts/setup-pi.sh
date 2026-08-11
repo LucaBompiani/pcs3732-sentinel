@@ -73,7 +73,8 @@ ensure_boot_param() {
 APT_PACKAGES=(
     python3-picamera2      # câmera CSI (traz libcamera + python3-kms++)
     python3-libcamera
-    python3-opencv         # reconhecimento facial LBPH (services/face_recognition)
+    python3-opencv         # deteccao de rosto (services/face_detector)
+    opencv-data            # cascatas de Haar; NAO e dependencia do python3-opencv
     python3-numpy
     python3-venv
     python3-dev

@@ -9,6 +9,8 @@ Usa o classificador Haar em cascata que acompanha o OpenCV base
 (``haarcascade_frontalface_default.xml``), não os módulos *contrib*.
 """
 
+import os
+
 from sentinel.services.face_encoding import FACE_SIZE
 
 # Parâmetros do detector Haar.
@@ -23,6 +25,59 @@ MIN_NEIGHBORS = 5
 MIN_FACE_PIXELS = 60
 
 
+CASCADE_FILE = "haarcascade_frontalface_default.xml"
+
+# Diretórios onde o arquivo da cascata pode estar. O atributo ``cv2.data`` só
+# existe nos wheels do PyPI (opencv-python); o pacote python3-opencv do Debian
+# /Raspberry Pi OS instala os XML em /usr/share e NÃO define ``cv2.data``, o que
+# torna ``cv2.data.haarcascades`` um AttributeError justamente no dispositivo.
+CASCADE_DIRS = (
+    "/usr/share/opencv4/haarcascades/",
+    "/usr/share/opencv/haarcascades/",
+    "/usr/local/share/opencv4/haarcascades/",
+    "/usr/share/OpenCV/haarcascades/",
+)
+
+
+def find_cascade(cv2, nome=CASCADE_FILE, dirs=CASCADE_DIRS):
+    """Localiza o XML da cascata de Haar entre as instalações possíveis.
+
+    Args:
+        cv2: Módulo OpenCV já importado.
+        nome: Nome do arquivo da cascata.
+        dirs: Diretórios adicionais a procurar.
+
+    Returns:
+        Caminho absoluto do arquivo.
+
+    Raises:
+        RuntimeError: Se nenhum candidato existir, listando onde procurou.
+    """
+    candidatos = []
+
+    # Wheel do PyPI: cv2.data.haarcascades.
+    data = getattr(cv2, "data", None)
+    if data is not None and hasattr(data, "haarcascades"):
+        candidatos.append(os.path.join(data.haarcascades, nome))
+
+    # Ao lado do próprio módulo (algumas distribuições).
+    arquivo_cv2 = getattr(cv2, "__file__", None)
+    if arquivo_cv2:
+        candidatos.append(os.path.join(os.path.dirname(arquivo_cv2), "data", nome))
+
+    candidatos.extend(os.path.join(d, nome) for d in dirs)
+
+    for caminho in candidatos:
+        if os.path.exists(caminho):
+            return caminho
+
+    raise RuntimeError(
+        "Cascata de Haar não encontrada. Instale os dados do OpenCV "
+        "(sudo apt install -y opencv-data) ou aponte um caminho válido.\n"
+        "Procurei em:\n  " + "\n  ".join(candidatos)
+    )
+
+
 class HaarFaceDetector:
     """Detector de rosto frontal via cascata de Haar (import tardio de ``cv2``)."""
 
@@ -31,12 +86,12 @@ class HaarFaceDetector:
 
         self._cv2 = cv2
         self._size = size
-        caminho = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        caminho = find_cascade(cv2)
         self._cascade = cv2.CascadeClassifier(caminho)
         if self._cascade.empty():
             raise RuntimeError(
-                f"Não foi possível carregar a cascata de Haar em {caminho}. "
-                "Instale o pacote python3-opencv completo."
+                f"Cascata de Haar encontrada em {caminho}, mas o OpenCV não "
+                "conseguiu carregá-la (arquivo corrompido?)."
             )
 
     def _to_gray(self, frame):

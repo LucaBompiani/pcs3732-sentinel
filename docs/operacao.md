@@ -42,6 +42,25 @@ da montagem.
 Nada é enviado enquanto você não apertar `#`. Se errar, `*` apaga dígito a
 dígito.
 
+### Retorno visual do que você digita
+
+A segunda linha do LCD mostra o progresso a cada tecla, para você saber que ela
+foi registrada — a varredura do teclado ignora pressões muito curtas, e sem esse
+retorno você digitaria às cegas:
+
+```
+Defina seu PIN          Defina seu PIN
+termine com #     ->    ***
+```
+
+Por padrão os dígitos são **mascarados** (`SENTINEL_PIN_ECHO=mask`): aparece o
+comprimento, não o segredo. Para conferir a montagem do teclado — por exemplo
+suspeitando de tecla trocada — use `SENTINEL_PIN_ECHO=plain`, que mostra os
+dígitos de verdade.
+
+> Deixe `plain` apenas durante a depuração: qualquer pessoa que olhe a tela lê o
+> PIN. `off` desliga o retorno por completo.
+
 ---
 
 ## 2. Caso de uso: cadastrar a primeira pessoa
@@ -54,10 +73,10 @@ dígito.
 | 1 | No terminal, escolha `4` | — |
 | 2 | Digite `ana` e Enter | `Novo cadastro` / `Tecle A p/ inic` |
 | 3 | Ana aperta `A` no teclado | `PIN do operador` / `termine com #` |
-| 4 | **Operador** digita o PIN mestre e `#` | `Olhe p/ camera` / `Capturando 0/5` |
+| 4 | **Operador** digita o PIN mestre e `#` | `PIN do operador` / `***` → `Olhe p/ camera` |
 | 5 | Ana olha para a câmera, parada | `Capturando 1/5` … `5/5` |
 | 6 | — | `Defina seu PIN` / `termine com #` |
-| 7 | Ana digita o PIN dela e `#` | `Passe o cartao` / `ou aguarde` |
+| 7 | Ana digita o PIN dela e `#` | `Defina seu PIN` / `****` → `Passe o cartao` |
 | 8 | Ana encosta o cartão, **ou espera ~15 s** | `Aceita cadastro?` / `Tecle A p/ sim` |
 | 9 | Ana aperta `A` | `Cadastro OK` |
 
@@ -89,7 +108,7 @@ inclinado não é encontrado.
 | 1 | No terminal, escolha `3` | `Aproxime-se` |
 | 2 | Ana se posiciona (o PIR detecta) | — |
 | 3 | Ana olha para a câmera | `Fator 2` / `PIN ou cartao` |
-| 4 | Ana digita o PIN e `#`, **ou** passa o cartão | `Bem-vindo` / `ana` |
+| 4 | Ana digita o PIN e `#`, **ou** passa o cartão | `Fator 2` / `****` → `Bem-vindo` / `ana` |
 | 5 | — | servo destrava por 5 s, LED aceso, 1 bipe |
 
 Aqui, diferente do cadastro, **os dois fatores são lidos em paralelo**: o que
@@ -172,10 +191,12 @@ de expressão e ângulo (não 5 fotos idênticas).
 | Nunca reconhece ninguém | limiar baixo demais, ou cadastro ruim | subir o limiar; recadastrar com boa luz |
 | LCD apagado ou com blocos | contraste | ajustar o potenciômetro atrás do módulo |
 | LCD não escreve | endereço I2C diferente de `0x27` | `i2cdetect -y 1` e ajustar `I2C_ADDR` em [display.py](../src/sentinel/hal/real/display.py) |
-| Tecla errada aparece | linhas/colunas trocadas | conferir [keypad.py](../src/sentinel/hal/real/keypad.py) contra o Tutorial cap. 21 |
+| Tecla errada aparece | linhas/colunas trocadas | `SENTINEL_PIN_ECHO=plain` para ver o que chega; conferir [keypad.py](../src/sentinel/hal/real/keypad.py) contra o Tutorial cap. 21 |
+| Tecla não aparece no LCD | pressão curta demais, ou eco `off` | segurar ~0,3 s; conferir `SENTINEL_PIN_ECHO` |
 | Cartão não é lido | SPI desabilitado, cartão incompatível | `make check-pi`; usar cartão Mifare 13,56 MHz |
 | Servo não gira | alimentação insuficiente | servo em fonte externa, GND comum com o Pi |
 | Câmera não detectada | pilha legada, cabo, sem reboot | `make diag-camera` |
+| `Cascata de Haar não encontrada` | pacote `opencv-data` ausente | `sudo apt install -y opencv-data` |
 
 ---
 
