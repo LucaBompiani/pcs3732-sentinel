@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help run run-pi setup-pi check-pi diag-camera install-pi test clean
+.PHONY: help run run-pi setup-pi check-pi diag-camera diag-hw install-pi test clean
 
 ## Lista os alvos disponíveis
 help:
@@ -26,6 +26,10 @@ check-pi:
 ## Diagnostica a camera CSI passo a passo (firmware -> libcamera -> picamera2)
 diag-camera:
 	./scripts/diag-camera.sh
+
+## Testa cada periferico isoladamente (buzzer, led, display, servo, teclado...)
+diag-hw:
+	./scripts/diag-hardware.py $(DEV)
 
 ## Sobe o Sentinel no Raspberry Pi (carrega .env e valida o hardware)
 run-pi:

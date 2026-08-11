@@ -111,6 +111,9 @@ Três restrições da placa (Tutorial, pág. 41) moldaram o projeto:
 | `SENTINEL_TOTAL_TIMEOUT` | `8.0` | Orçamento total de autenticação (RNF05) |
 | `SENTINEL_PIN_ECHO` | `mask` | Eco do PIN no display: `mask`, `plain` ou `off` |
 | `SENTINEL_FACE_SAMPLES` | `5` | Amostras faciais coletadas no cadastro (RF08) |
+| `SENTINEL_FACE_ATTEMPTS` | `10` | Quadros por tentativa de acesso (rajada) |
+| `SENTINEL_FACE_INTERVAL` | `0.3` | Intervalo entre quadros da rajada, em segundos |
+| `SENTINEL_FACE_PREVIEW` | `off` | Exibe a captura: `window`, `file`, `ascii` ou `off` |
 | `SENTINEL_FACE_THRESHOLD` | `0.55` | Distância máxima para aceitar um rosto (RF03) |
 | `SENTINEL_MASTER_PIN` | `0000` | PIN mestre do operador para enrolamento (RF08) |
 | `SENTINEL_MAX_FAILURES` | `3` | Falhas seguidas do 2º fator até bloquear (RF10) |
@@ -129,6 +132,14 @@ O LBPH é implementado no projeto ([face_encoding.py](src/sentinel/services/face
 Não há etapa de treino com estado: a base de amostras *é* o modelo, então um cadastro novo passa a valer de imediato, sem retreinar. Amostras de bases anteriores a esta implementação (que guardavam texto) são ignoradas na comparação em vez de causar erro.
 
 A suavização antes do LBP não é cosmética: sem ela, um nível de cinza de ruído do sensor já inverte bits do código em regiões lisas da pele. Medido em faces sintéticas, ela derruba a distância entre duas capturas da mesma pessoa de ~0.78 para ~0.12, enquanto entre pessoas diferentes sobe para ~1.38 — é essa separação que torna o limiar utilizável.
+
+No acesso, a identificação usa uma **rajada** de `SENTINEL_FACE_ATTEMPTS` quadros espaçados de `SENTINEL_FACE_INTERVAL`: o primeiro que reconhecer alguém encerra a busca, e só há negação quando todos falham. O detector Haar exige rosto frontal e nítido, então uma captura única falha com frequência por motivos banais (piscada, micro-movimento, autofoco). O critério de aceitação de **cada** quadro continua o mesmo — a rajada dá mais oportunidades de pegar um quadro bom, não afrouxa o reconhecimento.
+
+> Ainda assim, mais tentativas significam mais chances de um falso positivo por acesso. Se aumentar `SENTINEL_FACE_ATTEMPTS`, compense verificando o limiar.
+
+Para conferir o enquadramento, `SENTINEL_FACE_PREVIEW` exibe cada captura — as 5 do cadastro e as do acesso. `window` abre uma janela do OpenCV com a foto e um retângulo sobre o rosto detectado (exige monitor no Pi); `file` grava a foto em JPEG sob `/tmp/sentinel-preview` e imprime o caminho, que é o modo utilizável por SSH; `ascii` desenha no terminal o recorte normalizado, sem gravar nada.
+
+> `file` **grava imagens de rosto em disco**, ao contrário de todo o resto do sistema. É modo de depuração: use temporariamente e apague o diretório, senão a afirmação de privacidade (RNF04) deixa de valer.
 
 > O limiar padrão (`0.55`) foi calibrado com faces sintéticas. **Com rostos reais ele precisa ser conferido na montagem** — procedimento na [seção 6 do guia de operação](docs/operacao.md).
 

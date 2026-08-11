@@ -99,6 +99,30 @@ Para a detecção funcionar: rosto **frontal**, sem contraluz, a ~40–60 cm da
 câmera, sem óculos escuros ou máscara. O detector Haar é frontal — rosto muito
 inclinado não é encontrado.
 
+### Ver o que a câmera capturou
+
+Com `SENTINEL_FACE_PREVIEW=ascii` (padrão), o terminal desenha cada rosto
+capturado — as 5 do cadastro e a do acesso:
+
+```
+┌─ ana ───────────────────────────┐
+│ @@@@@@@@@@@@@@%%##**+++++====--: │
+│ @@@@@@@@@@@@@@%%#**+===----::::. │
+│ ...                              │
+└──────────────────────────────────┘
+```
+
+É o recorte **normalizado**, o mesmo que alimenta o reconhecimento — e não o
+quadro cru. É ele que decide a identificação, então é o que interessa conferir:
+se sair torto, escuro ou pegando o fundo, o problema está na captura, não no
+limiar.
+
+Com monitor ligado ao Pi, `SENTINEL_FACE_PREVIEW=window` abre uma janela do
+OpenCV; sem servidor gráfico ela falha e o sistema cai sozinho para o ASCII.
+`off` desliga.
+
+> Nada é gravado em disco: a imagem é desenhada e descartada (RNF04).
+
 ### Retorno sonoro e luminoso
 
 O buzzer e o LED dizem o resultado sem precisar ler o LCD — útil de longe ou com
@@ -122,12 +146,19 @@ A placa tem um único LED, então "verde/vermelho" viram contínuo/piscando.
 |---|---|---|
 | 1 | No terminal, escolha `3` | `Aproxime-se` |
 | 2 | Ana se posiciona (o PIR detecta) | — |
-| 3 | Ana olha para a câmera | `Fator 2` / `PIN ou cartao` |
+| 3 | Ana olha para a câmera | `Reconhecendo...` / `1/10` → `Fator 2` |
 | 4 | Ana digita o PIN e `#`, **ou** passa o cartão | `Fator 2` / `****` → `Bem-vindo` / `ana` |
 | 5 | — | servo destrava por 5 s, LED aceso, um `pi` |
 
 Aqui, diferente do cadastro, **os dois fatores são lidos em paralelo**: o que
 chegar primeiro (PIN ou cartão) é usado.
+
+**A câmera tira uma rajada de 10 fotos**, uma a cada 0,3 s, e basta **uma** ser
+reconhecida para o Fator 1 passar. O detector Haar precisa de rosto frontal e
+nítido, então uma captura só falha à toa com frequência — piscar já basta. O
+contador `Reconhecendo... 3/10` mostra o progresso; assim que reconhece, avança.
+
+Ajuste com `SENTINEL_FACE_ATTEMPTS` e `SENTINEL_FACE_INTERVAL`.
 
 ---
 
@@ -186,6 +217,10 @@ Em faces sintéticas, a distância entre duas capturas da mesma pessoa fica em
 ~0.12 e entre pessoas diferentes em ~1.2–1.4, o que sustenta o padrão. **Com
 rostos reais esses números mudam** e o valor precisa ser conferido na montagem.
 
+Antes de mexer no limiar, confira a rajada: falso negativo costuma ser captura
+ruim, não limiar apertado. Com `SENTINEL_FACE_PREVIEW=ascii` dá para ver se os
+10 quadros estão saindo aproveitáveis.
+
 Procedimento: cadastre duas pessoas, rode acessos repetidos e observe. Se a
 pessoa certa é recusada com frequência, suba em passos de 0.05. Se alguém é
 confundido com outro, desça — e prefira errar para o lado rigoroso, já que um
@@ -201,7 +236,8 @@ de expressão e ângulo (não 5 fotos idênticas).
 
 | Sintoma | Causa provável | O que fazer |
 |---|---|---|
-| `Rosto nao visto` sempre | contraluz, rosto inclinado, longe demais | luz de frente, rosto frontal, ~50 cm |
+| `Rosto nao visto` sempre | contraluz, rosto inclinado, longe demais | `SENTINEL_FACE_PREVIEW=ascii` para ver o recorte; luz de frente, rosto frontal, ~50 cm |
+| Nega mesmo com a pessoa certa | poucas tentativas, ou limiar baixo | subir `SENTINEL_FACE_ATTEMPTS`; conferir o limiar |
 | Reconhece a pessoa errada | limiar alto demais | reduzir `SENTINEL_FACE_THRESHOLD` |
 | Nunca reconhece ninguém | limiar baixo demais, ou cadastro ruim | subir o limiar; recadastrar com boa luz |
 | LCD apagado ou com blocos | contraste | ajustar o potenciômetro atrás do módulo |

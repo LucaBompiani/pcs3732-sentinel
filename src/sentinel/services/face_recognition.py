@@ -93,13 +93,21 @@ class RealRecognizer:
         Returns:
             ``bytes`` com o vetor LBPH, ou ``None`` se não houver rosto.
         """
-        rosto = self._get_detector().extract(frame)
+        detector = self._get_detector()
+        # ``detect`` devolve também a caixa do rosto, para a pré-visualização
+        # desenhar o retângulo sobre a foto. Detectores que só implementam
+        # ``extract`` (como os usados nos testes) continuam funcionando.
+        if hasattr(detector, "detect"):
+            rosto, caixa = detector.detect(frame)
+        else:
+            rosto, caixa = detector.extract(frame), None
+
         if rosto is None:
             return None
         if self._preview is not None:
             # O rótulo distingue as capturas do cadastro (nome do usuário) da
             # verificação de acesso, que ainda não sabe quem é.
-            self._preview(rosto, username or "verificacao")
+            self._preview(frame, rosto, caixa, username or "verificacao")
         return face_encoding.encode(rosto)
 
     def identify(self, conn, frame):

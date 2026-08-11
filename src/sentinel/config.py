@@ -29,9 +29,10 @@ class Config:
             um ``*`` por dígito), ``"plain"`` (mostra os dígitos — use apenas em
             depuração/demonstração, pois expõe o segredo a quem olhar a tela) ou
             ``"off"`` (nenhum retorno visual).
-        face_preview: Exibição do rosto capturado: ``"ascii"`` (padrão, desenha
-            no terminal — funciona por SSH), ``"window"`` (janela do OpenCV,
-            exige monitor) ou ``"off"``. Nada é gravado em disco (RNF04).
+        face_preview: Exibição da captura: ``"window"`` (janela do OpenCV com
+            a foto), ``"file"`` (grava a foto em JPEG — DEPURAÇÃO, viola o
+            RNF04 enquanto ligado), ``"ascii"`` (recorte no terminal) ou
+            ``"off"`` (padrão).
         face_attempts: Quadros capturados por tentativa de acesso. O primeiro
             que identificar alguém encerra a rajada; só é negado quando todos
             falham. Combate o falso negativo do detector, que perde o rosto por
@@ -101,7 +102,7 @@ def load_config():
         presence_timeout=_get_optional_float("SENTINEL_PRESENCE_TIMEOUT", None),
         total_timeout=_get_float("SENTINEL_TOTAL_TIMEOUT", 8.0),
         pin_echo=os.environ.get("SENTINEL_PIN_ECHO", "mask").lower(),
-        face_preview=os.environ.get("SENTINEL_FACE_PREVIEW", "ascii").lower(),
+        face_preview=os.environ.get("SENTINEL_FACE_PREVIEW", "off").lower(),
         face_attempts=int(_get_float("SENTINEL_FACE_ATTEMPTS", 10)),
         face_interval=_get_float("SENTINEL_FACE_INTERVAL", 0.3),
         face_samples=int(_get_float("SENTINEL_FACE_SAMPLES", 5)),

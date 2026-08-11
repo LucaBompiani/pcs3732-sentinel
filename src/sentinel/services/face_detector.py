@@ -108,15 +108,20 @@ class HaarFaceDetector:
             return cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
         return cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
-    def extract(self, frame):
-        """Recorta e normaliza o maior rosto do quadro.
+    def detect(self, frame):
+        """Localiza o maior rosto e devolve o recorte normalizado e sua caixa.
 
         Args:
             frame: Quadro da câmera (array numpy da picamera2).
 
         Returns:
-            Lista de linhas de inteiros 0..255, ``FACE_SIZE`` x ``FACE_SIZE``,
-            ou ``None`` se nenhum rosto for encontrado.
+            Tupla ``(recorte, caixa)``, onde ``recorte`` é uma lista de linhas
+            de inteiros 0..255 de ``FACE_SIZE`` x ``FACE_SIZE`` e ``caixa`` é
+            ``(x, y, largura, altura)`` no quadro original. ``(None, None)`` se
+            nenhum rosto for encontrado.
+
+        A caixa é devolvida para a pré-visualização poder desenhar o retângulo
+        sobre a foto; o reconhecimento em si usa apenas o recorte.
         """
         cv2 = self._cv2
         gray = self._to_gray(frame)
@@ -128,7 +133,7 @@ class HaarFaceDetector:
             minSize=(MIN_FACE_PIXELS, MIN_FACE_PIXELS),
         )
         if len(faces) == 0:
-            return None
+            return None, None
 
         # Com mais de uma pessoa no quadro, o maior rosto é o mais próximo da
         # câmera — quem está de fato tentando entrar.
@@ -140,7 +145,11 @@ class HaarFaceDetector:
         # fraca antes de extrair as texturas.
         recorte = cv2.equalizeHist(recorte)
 
-        return recorte.tolist()
+        return recorte.tolist(), (int(x), int(y), int(w), int(h))
+
+    def extract(self, frame):
+        """Só o recorte normalizado, sem a caixa. Ver :meth:`detect`."""
+        return self.detect(frame)[0]
 
 
 def make(cfg=None):
