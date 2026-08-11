@@ -160,12 +160,18 @@ setup_python() {
         if (( CHECK_ONLY )); then
             printf '  (check) pularia: instalação do uv\n'
         else
-            local installer
-            installer="$(mktemp)"          # mktemp evita o /tmp com nome previsível
-            trap 'rm -f "$installer"' RETURN
-            curl -LsSf https://astral.sh/uv/install.sh -o "$installer" \
-                || { fail "download do instalador do uv falhou (sem rede?)"; return 1; }
-            sh "$installer" || { fail "instalação do uv falhou"; return 1; }
+            # mktemp evita o /tmp com nome previsível. A limpeza é explícita em
+            # cada saída: um `trap ... RETURN` não é escopado à função e
+            # dispararia de novo nas funções seguintes, com a variável já fora
+            # de escopo — o que sob `set -u` aborta o script.
+            local installer rc=0
+            installer="$(mktemp)" || { fail "mktemp falhou — /tmp cheio ou somente-leitura?"; return 1; }
+            curl -LsSf https://astral.sh/uv/install.sh -o "$installer" && sh "$installer" || rc=$?
+            rm -f "$installer"
+            if (( rc )); then
+                fail "instalação do uv falhou (rc=$rc) — sem rede? tente: curl -LsSf https://astral.sh/uv/install.sh | sh"
+                return 1
+            fi
             export PATH="$HOME/.local/bin:$PATH"
         fi
     fi
