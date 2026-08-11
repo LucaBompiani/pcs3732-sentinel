@@ -217,13 +217,18 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
         conn, cfg, candidate, pin, card_uid=card_uid
     )
 
+    # A mensagem vem ANTES do atuador e dos indicadores porque os dois
+    # bloqueiam: ``unlock`` segura a thread pelo tempo de abertura (o servo
+    # ainda soma o curso de ida e volta) e ``signal_denied`` gasta mais de um
+    # segundo em bipes e piscadas. Escrevendo depois, o veredito aparecia no
+    # LCD segundos após o acesso já ter sido decidido.
     if autorizado:
+        hal.display.show("Bem-vindo", candidate)
         hal.indicators.signal_granted()  # RF06
         hal.lock.unlock(cfg.relay_seconds)
-        hal.display.show("Bem-vindo", candidate)
     else:
-        hal.indicators.signal_denied()  # RF07 (fechadura permanece travada)
         hal.display.show("Acesso negado", "Fator 2 invalido")
+        hal.indicators.signal_denied()  # RF07 (fechadura permanece travada)
 
     return autorizado, f1, f2
 

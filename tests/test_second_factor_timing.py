@@ -121,3 +121,107 @@ def test_config_le_a_janela_de_cortesia(monkeypatch):
     assert load_config().second_factor_grace == 3.0
     monkeypatch.setenv("SENTINEL_SECOND_FACTOR_GRACE", "0.5")
     assert load_config().second_factor_grace == 0.5
+
+
+# ------------------------------------------- ordem do veredito x atuacao
+
+class GravadorDeOrdem:
+    """Registra a sequencia de acoes entre dispositivos diferentes."""
+
+    def __init__(self):
+        self.eventos = []
+
+
+class DisplayOrdenado:
+    def __init__(self, gravador):
+        self._g = gravador
+
+    def show(self, line1, line2=""):
+        if line1 in ("Bem-vindo", "Acesso negado"):
+            self._g.eventos.append("veredito no LCD")
+
+    def clear(self):
+        pass
+
+
+class TrancaOrdenada:
+    def __init__(self, gravador):
+        self._g = gravador
+        self.unlocks = []
+
+    def unlock(self, seconds):
+        self._g.eventos.append("atuador")
+        self.unlocks.append(seconds)
+
+    def lock(self):
+        pass
+
+    def is_locked(self):
+        return True
+
+
+class IndicadoresOrdenados:
+    def __init__(self, gravador):
+        self._g = gravador
+
+    def signal_granted(self):
+        self._g.eventos.append("indicadores")
+
+    def signal_denied(self):
+        self._g.eventos.append("indicadores")
+
+    def led_green(self, on):
+        pass
+
+    def led_red(self, on):
+        pass
+
+    def beep(self, pattern="ok"):
+        pass
+
+
+def _hal_instrumentado(cfg):
+    g = GravadorDeOrdem()
+    hal = dataclasses.replace(
+        build_hal(cfg),
+        display=DisplayOrdenado(g),
+        lock=TrancaOrdenada(g),
+        indicators=IndicadoresOrdenados(g),
+    )
+    return hal, g
+
+
+def test_veredito_aparece_antes_de_acionar_o_atuador(conn):
+    # ``unlock`` bloqueia a thread pelo tempo de abertura — no servo, mais o
+    # curso de ida e volta. Escrevendo no LCD depois, o "Bem-vindo" so surgia
+    # segundos apos o acesso ja ter sido concedido.
+    create_user(conn, "joao", "1234")
+    hal, g = _hal_instrumentado(CFG)
+    hal.camera.see("joao")
+    hal.keypad.feed("1234")
+
+    assert run_access_cycle(conn, hal, CFG)[0] is True
+    assert g.eventos.index("veredito no LCD") < g.eventos.index("atuador")
+
+
+def test_veredito_aparece_antes_dos_indicadores(conn):
+    # ``signal_denied`` gasta mais de um segundo em bipes e piscadas.
+    create_user(conn, "joao", "1234")
+    hal, g = _hal_instrumentado(CFG)
+    hal.camera.see("joao")
+    hal.keypad.feed("9999")  # PIN errado
+
+    assert run_access_cycle(conn, hal, CFG)[0] is False
+    assert g.eventos.index("veredito no LCD") < g.eventos.index("indicadores")
+
+
+def test_atuador_continua_recebendo_o_tempo_configurado(conn):
+    # A troca de ordem nao pode alterar o tempo de abertura (RF06).
+    create_user(conn, "joao", "1234")
+    hal, _ = _hal_instrumentado(CFG)
+    hal.camera.see("joao")
+    hal.keypad.feed("1234")
+
+    run_access_cycle(conn, hal, CFG)
+
+    assert hal.lock.unlocks == [CFG.relay_seconds]
