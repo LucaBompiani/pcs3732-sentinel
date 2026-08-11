@@ -99,10 +99,32 @@ Para a detecção funcionar: rosto **frontal**, sem contraluz, a ~40–60 cm da
 câmera, sem óculos escuros ou máscara. O detector Haar é frontal — rosto muito
 inclinado não é encontrado.
 
-### Ver o que a câmera capturou
+### Painel web — veja a foto de cada captura
 
-Com `SENTINEL_FACE_PREVIEW=ascii` (padrão), o terminal desenha cada rosto
-capturado — as 5 do cadastro e a do acesso:
+Ao subir com `make run-pi`, abra no navegador de qualquer máquina da rede:
+
+```
+http://<ip-do-pi>:8080
+```
+
+(o IP sai de `hostname -I` no Pi). O painel mostra:
+
+- **a foto** de cada captura, com o retângulo verde sobre o rosto detectado
+- o rótulo — `Cadastro: ana` ou `Verificação de acesso`
+- o **espelho do LCD**, com as mesmas duas linhas do display
+- a faixa das capturas anteriores
+
+É a forma mais prática de acompanhar cadastro e acesso: as 5 fotos do cadastro
+aparecem uma a uma, e no acesso você vê exatamente qual quadro da rajada foi
+usado.
+
+> As imagens ficam só na memória do processo (buffer de 8) — nada vai para o
+> disco, então o painel não abre exceção ao RNF04. Ao encerrar, somem.
+
+### Outros modos de visualização
+
+Se preferir não usar o navegador, `SENTINEL_FACE_PREVIEW=ascii` desenha cada
+rosto capturado no terminal:
 
 ```
 ┌─ ana ───────────────────────────┐
@@ -117,11 +139,11 @@ quadro cru. É ele que decide a identificação, então é o que interessa confe
 se sair torto, escuro ou pegando o fundo, o problema está na captura, não no
 limiar.
 
-Com monitor ligado ao Pi, `SENTINEL_FACE_PREVIEW=window` abre uma janela do
-OpenCV; sem servidor gráfico ela falha e o sistema cai sozinho para o ASCII.
-`off` desliga.
+Com monitor ligado ao Pi, `window` abre uma janela do OpenCV. `file` grava as
+fotos em `/tmp/sentinel-preview` e `off` desliga tudo.
 
-> Nada é gravado em disco: a imagem é desenhada e descartada (RNF04).
+> Só o modo `file` grava imagens em disco. Use-o apenas para depurar e apague o
+> diretório depois, senão a afirmação de privacidade (RNF04) deixa de valer.
 
 ### Retorno sonoro e luminoso
 
@@ -248,6 +270,8 @@ de expressão e ângulo (não 5 fotos idênticas).
 | Servo não gira | alimentação insuficiente | servo em fonte externa, GND comum com o Pi |
 | Câmera não detectada | pilha legada, cabo, sem reboot | `make diag-camera` |
 | `Cascata de Haar não encontrada` | pacote `opencv-data` ausente | `sudo apt install -y opencv-data` |
+| Painel não abre no navegador | firewall, ou IP errado | `hostname -I` no Pi; testar `curl localhost:8080` |
+| Painel abre mas sem foto | ainda não houve captura | rodar a opção 3 ou 4 do menu |
 
 ---
 

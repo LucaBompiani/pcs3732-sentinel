@@ -246,7 +246,8 @@ setup_python() {
         (( CHECK_ONLY )) || ok ".venv criada"
     fi
 
-    # --extra pi: gpiozero, mfrc522, spidev, RPLCD, RPi.GPIO.
+    # Base (nicegui/fastapi/uvicorn, do painel web) + --extra pi (gpiozero,
+    # mfrc522, spidev, RPLCD, RPi.GPIO).
     # --inexact: preserva os pacotes do sistema visíveis na venv.
     run uv sync --project "$REPO_DIR" --extra pi --inexact
     (( CHECK_ONLY )) || ok "dependências Python instaladas"

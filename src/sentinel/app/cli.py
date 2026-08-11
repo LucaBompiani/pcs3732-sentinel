@@ -5,6 +5,7 @@ aciona os drivers do Raspberry Pi. A opção de ciclo por hardware exercita o
 mesmo fluxo em ambos os casos.
 """
 
+from sentinel.app import webui
 from sentinel.app.state_machine import (
     run_access_attempt,
     run_access_cycle,
@@ -12,6 +13,7 @@ from sentinel.app.state_machine import (
 )
 from sentinel.config import load_config
 from sentinel.hal.factory import build_hal
+from sentinel.hal.web_display import WebDisplay
 from sentinel.infra.db import connect
 from sentinel.infra.users_repository import create_user, user_exists
 from sentinel.services.lockout import is_locked
@@ -71,10 +73,22 @@ def cadastro_hardware(conn, hal, cfg):
     print("CADASTRO CONCLUIDO" if ok else "CADASTRO ABORTADO")
 
 
+def iniciar_painel(hal, cfg):
+    """Sobe o painel web e faz o display espelhar nele. Devolve o HAL a usar."""
+    if cfg.face_preview != "web":
+        return hal
+
+    import dataclasses
+
+    servidor = webui.ensure_server(cfg)
+    print(f"Painel: http://localhost:{servidor.port}  (ou http://<ip-do-pi>:{servidor.port})")
+    return dataclasses.replace(hal, display=WebDisplay(hal.display, servidor))
+
+
 def main():
     cfg = load_config()
     conn = connect(cfg.db_path)
-    hal = build_hal(cfg)
+    hal = iniciar_painel(build_hal(cfg), cfg)
     try:
         while True:
             print(MENU)

@@ -6,6 +6,7 @@ version = "0.2.0"
 # não são instaláveis por pip — logo o piso não pode ser maior que ele.
 requires-python = ">=3.11"
 dependencies = [
+    "nicegui>=3.15.0",
     "pytest>=9.1.1",
 ]
 

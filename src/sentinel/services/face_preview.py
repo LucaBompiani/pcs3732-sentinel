@@ -2,6 +2,10 @@
 
 Quatro modos, por ``SENTINEL_FACE_PREVIEW``:
 
+``web``
+    Publica a **foto** num painel em ``http://<ip-do-pi>:8080``, com o retângulo
+    do rosto e as mensagens do fluxo. É o modo recomendado: funciona por SSH,
+    mostra a imagem de verdade e não grava nada em disco.
 ``window``
     Abre uma janela do OpenCV com a **foto** da câmera e um retângulo sobre o
     rosto detectado. Exige monitor ligado ao Pi (ou X11 encaminhado por SSH).
@@ -129,6 +133,20 @@ def has_display():
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
+def to_jpeg(imagem, qualidade=85):
+    """Codifica um array BGR em JPEG; ``None`` se o OpenCV recusar."""
+    import cv2
+
+    ok, buffer = cv2.imencode(".jpg", imagem, [cv2.IMWRITE_JPEG_QUALITY, qualidade])
+    return buffer.tobytes() if ok else None
+
+
+def _publicar_web(frame, caixa, rotulo, servidor):
+    jpeg = to_jpeg(annotate(frame, caixa, rotulo))
+    if jpeg is not None:
+        servidor.publish_image(jpeg, rotulo)
+
+
 def _mostrar_janela(frame, caixa, rotulo):
     import cv2
 
@@ -146,13 +164,15 @@ def _gravar_arquivo(frame, caixa, rotulo, diretorio, contador):
     return caminho
 
 
-def make(cfg, saida=print, diretorio=PREVIEW_DIR):
+def make(cfg, saida=print, diretorio=PREVIEW_DIR, servidor=None):
     """Devolve o callback de exibição da captura, ou ``None`` se desligado.
 
     Args:
         cfg: Configuração (``cfg.face_preview``).
         saida: Função de escrita das mensagens; injetável para teste.
         diretorio: Destino do modo ``file``.
+        servidor: Painel web a usar no modo ``web``; ``None`` sobe o do
+            processo. Injetável para teste.
 
     Returns:
         ``callable(frame, rosto, caixa, rotulo)`` ou ``None``.
@@ -160,6 +180,12 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR):
     modo = getattr(cfg, "face_preview", "off")
     if modo == "off":
         return None
+
+    if modo == "web" and servidor is None:
+        from sentinel.app import webui
+
+        servidor = webui.ensure_server(cfg)
+        saida(f"[preview] painel em http://localhost:{servidor.port}")
 
     if modo == "window" and not has_display():
         saida(
@@ -184,7 +210,9 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR):
             return
 
         try:
-            if modo == "window":
+            if modo == "web":
+                _publicar_web(frame, caixa, rotulo, servidor)
+            elif modo == "window":
                 _mostrar_janela(frame, caixa, rotulo)
             else:
                 caminho = _gravar_arquivo(frame, caixa, rotulo, diretorio, contador[0])
