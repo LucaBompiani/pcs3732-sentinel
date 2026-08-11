@@ -2,10 +2,9 @@
 
 Quatro modos, por ``SENTINEL_FACE_PREVIEW``:
 
-``web``
-    Publica a **foto** num painel em ``http://<ip-do-pi>:8080``, com o retângulo
-    do rosto e as mensagens do fluxo. É o modo recomendado: funciona por SSH,
-    mostra a imagem de verdade e não grava nada em disco.
+``gui``
+    Publica a **foto** na janela do aplicativo (:mod:`sentinel.app.gui`), com o
+    retângulo do rosto. É o modo padrão quando há monitor no Pi.
 ``window``
     Abre uma janela do OpenCV com a **foto** da câmera e um retângulo sobre o
     rosto detectado. Exige monitor ligado ao Pi (ou X11 encaminhado por SSH).
@@ -133,18 +132,22 @@ def has_display():
     return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
-def to_jpeg(imagem, qualidade=85):
-    """Codifica um array BGR em JPEG; ``None`` se o OpenCV recusar."""
+def to_png(imagem):
+    """Codifica um array BGR em PNG; ``None`` se o OpenCV recusar.
+
+    PNG e nao JPEG porque o ``tkinter.PhotoImage`` do Tk 8.6+ lê PNG nativamente,
+    sem depender do Pillow.
+    """
     import cv2
 
-    ok, buffer = cv2.imencode(".jpg", imagem, [cv2.IMWRITE_JPEG_QUALITY, qualidade])
+    ok, buffer = cv2.imencode(".png", imagem)
     return buffer.tobytes() if ok else None
 
 
-def _publicar_web(frame, caixa, rotulo, servidor):
-    jpeg = to_jpeg(annotate(frame, caixa, rotulo))
-    if jpeg is not None:
-        servidor.publish_image(jpeg, rotulo)
+def _publicar_gui(frame, caixa, rotulo, painel):
+    png = to_png(annotate(frame, caixa, rotulo))
+    if png is not None:
+        painel.publish_image(png, rotulo)
 
 
 def _mostrar_janela(frame, caixa, rotulo):
@@ -171,8 +174,8 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR, servidor=None):
         cfg: Configuração (``cfg.face_preview``).
         saida: Função de escrita das mensagens; injetável para teste.
         diretorio: Destino do modo ``file``.
-        servidor: Painel web a usar no modo ``web``; ``None`` sobe o do
-            processo. Injetável para teste.
+        servidor: Painel a usar no modo ``gui``; ``None`` usa a janela
+            aberta. Injetável para teste.
 
     Returns:
         ``callable(frame, rosto, caixa, rotulo)`` ou ``None``.
@@ -181,11 +184,12 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR, servidor=None):
     if modo == "off":
         return None
 
-    if modo == "web" and servidor is None:
-        from sentinel.app import webui
+    if modo == "gui" and servidor is None:
+        from sentinel.app import gui
 
-        servidor = webui.ensure_server(cfg)
-        saida(f"[preview] painel em http://localhost:{servidor.port}")
+        servidor = gui.current_panel()
+        if servidor is None:  # a janela nao esta aberta: nada a exibir
+            return None
 
     if modo == "window" and not has_display():
         saida(
@@ -210,8 +214,8 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR, servidor=None):
             return
 
         try:
-            if modo == "web":
-                _publicar_web(frame, caixa, rotulo, servidor)
+            if modo == "gui":
+                _publicar_gui(frame, caixa, rotulo, servidor)
             elif modo == "window":
                 _mostrar_janela(frame, caixa, rotulo)
             else:
