@@ -76,6 +76,7 @@ APT_PACKAGES=(
     python3-opencv         # deteccao de rosto (services/face_detector)
     opencv-data            # cascatas de Haar; NAO e dependencia do python3-opencv
     python3-numpy
+    python3-tk             # interface grafica do aplicativo (sentinel.app.gui)
     python3-venv
     python3-dev
     python3-lgpio          # backend de GPIO do gpiozero no Pi

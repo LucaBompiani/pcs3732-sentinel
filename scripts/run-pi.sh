@@ -10,6 +10,7 @@
 #   ./scripts/run-pi.sh                    # backend real, atuador do .env
 #   SENTINEL_LOCK_TYPE=servo ./scripts/run-pi.sh
 #   ./scripts/run-pi.sh --mock             # força backend mock (debug no Pi)
+#   ./scripts/run-pi.sh --cli              # terminal em vez da janela
 #
 set -euo pipefail
 
@@ -63,6 +64,16 @@ if [[ "${1:-}" == "--mock" ]]; then
     shift
 fi
 
+# Interface: janela (padrão, exige monitor no Pi) ou CLI no terminal.
+MODULO="sentinel/app/gui.py"
+if [[ "${1:-}" == "--cli" ]]; then
+    MODULO="sentinel/app/cli.py"
+    shift
+elif [[ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    warn "sem servidor gráfico (sessão SSH?); abrindo a CLI. Use --cli para não ver este aviso."
+    MODULO="sentinel/app/cli.py"
+fi
+
 # --------------------------------------------------------------- validações
 # Falhar aqui com uma mensagem clara é melhor do que um ImportError ou um
 # "Permission denied" no meio da inicialização do HAL.
@@ -81,4 +92,4 @@ fi
 printf 'Sentinel  backend=%s  lock=%s  db=%s\n' \
     "$SENTINEL_BACKEND" "${SENTINEL_LOCK_TYPE:-solenoid}" "${SENTINEL_DB_PATH:-sentinel.db}"
 
-exec uv run --no-sync python src/sentinel/app/cli.py "$@"
+exec uv run --no-sync python "src/$MODULO" "$@"

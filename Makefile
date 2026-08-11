@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-.PHONY: help run run-pi setup-pi check-pi diag-camera diag-hw install-pi test clean
+.PHONY: help run run-cli run-pi setup-pi check-pi diag-camera diag-hw install-pi test clean
 
 ## Lista os alvos disponíveis
 help:
@@ -9,10 +9,14 @@ help:
 	  | sed -E 'N; s/^## (.*)\n([a-zA-Z_-]+):.*/\2|\1/; t; D' \
 	  | awk -F'|' '{ printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2 }'
 	@echo
-	@echo 'No PC use "run" (backend mock). No Raspberry Pi: setup-pi -> reboot -> run-pi.'
+	@echo 'No PC use "run" (janela, backend mock). No Raspberry Pi: setup-pi -> reboot -> run-pi.'
 
-## Roda a CLI com backend mock (qualquer PC)
+## Abre a janela do aplicativo com backend mock (qualquer PC)
 run:
+	PYTHONPATH=src uv run --frozen python src/sentinel/app/gui.py
+
+## Roda a CLI de texto com backend mock
+run-cli:
 	PYTHONPATH=src uv run --frozen python src/sentinel/app/cli.py
 
 ## Provisiona o Raspberry Pi (apt, SPI/I2C/camera, grupos, venv) — uma vez
