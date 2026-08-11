@@ -1,7 +1,23 @@
 [project]
 name = "pcs3732-sentinel"
-version = "0.1.0"
+version = "0.2.0"
 requires-python = ">=3.14"
 dependencies = [
     "pytest>=9.1.1",
+]
+
+[project.optional-dependencies]
+# Dependências de hardware do Raspberry Pi. Instaladas apenas no dispositivo
+# (backend real) via `uv sync --extra pi` ou `pip install .[pi]`. O PC de
+# desenvolvimento não precisa delas: o backend mock roda com a base acima.
+pi = [
+    "gpiozero",
+    "lgpio",
+    "RPi.GPIO",
+    "picamera2",
+    "mfrc522",
+    "spidev",
+    "RPLCD",
+    "opencv-python-headless",
+    "numpy",
 ]
