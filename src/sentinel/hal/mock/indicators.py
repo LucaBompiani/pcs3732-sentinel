@@ -8,12 +8,17 @@ class MockIndicators:
         self.events = []
 
     def signal_granted(self):
-        """Feedback composto de acesso concedido (LED verde + bipe curto)."""
+        """Feedback de acesso concedido: LED contínuo + um bipe curto ("pi")."""
         self.events.append("granted")
+        self.beep("ok")
+        self.led_green(True)
 
     def signal_denied(self):
-        """Feedback composto de acesso negado (LED vermelho + bipe longo)."""
+        """Feedback de acesso negado: LED piscando + "pi pi piiii"."""
         self.events.append("denied")
+        self.led_green(False)
+        self.beep("fail")
+        self.led_red(True)
 
     def led_green(self, on):
         self.events.append(("led_green", bool(on)))

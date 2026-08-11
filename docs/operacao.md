@@ -99,6 +99,21 @@ Para a detecção funcionar: rosto **frontal**, sem contraluz, a ~40–60 cm da
 câmera, sem óculos escuros ou máscara. O detector Haar é frontal — rosto muito
 inclinado não é encontrado.
 
+### Retorno sonoro e luminoso
+
+O buzzer e o LED dizem o resultado sem precisar ler o LCD — útil de longe ou com
+a pessoa de costas para a tela:
+
+| Resultado | Buzzer | LED |
+|---|---|---|
+| **Autorizado** | um bipe curto — `pi` (0,15 s) | aceso contínuo |
+| **Negado** | dois curtos e um longo — `pi pi piiii` (1,1 s) | pisca 3× |
+
+A diferença está na **duração**, não só na contagem: três bipes iguais são
+fáceis de confundir com um só quando ecoam num corredor.
+
+A placa tem um único LED, então "verde/vermelho" viram contínuo/piscando.
+
 ---
 
 ## 3. Caso de uso: acesso autorizado
@@ -109,7 +124,7 @@ inclinado não é encontrado.
 | 2 | Ana se posiciona (o PIR detecta) | — |
 | 3 | Ana olha para a câmera | `Fator 2` / `PIN ou cartao` |
 | 4 | Ana digita o PIN e `#`, **ou** passa o cartão | `Fator 2` / `****` → `Bem-vindo` / `ana` |
-| 5 | — | servo destrava por 5 s, LED aceso, 1 bipe |
+| 5 | — | servo destrava por 5 s, LED aceso, um `pi` |
 
 Aqui, diferente do cadastro, **os dois fatores são lidos em paralelo**: o que
 chegar primeiro (PIN ou cartão) é usado.
@@ -120,7 +135,7 @@ chegar primeiro (PIN ou cartão) é usado.
 
 ### Rosto desconhecido (falha no Fator 1)
 
-`Acesso negado` / `Face nao reconh.` — LED pisca, 3 bipes. O segundo fator nem
+`Acesso negado` / `Face nao reconh.` — LED pisca, `pi pi piiii`. O segundo fator nem
 é pedido: sem identidade não há a quem comparar o PIN. Também é o que aparece
 quando ninguém é detectado no quadro.
 

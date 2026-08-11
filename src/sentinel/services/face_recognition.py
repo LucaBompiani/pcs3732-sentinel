@@ -15,7 +15,7 @@ próprio em vez do ``cv2.face``.
 """
 
 from sentinel.infra.users_repository import get_embeddings, user_exists
-from sentinel.services import face_encoding
+from sentinel.services import face_encoding, face_preview
 
 
 def recognize(conn, presented_name):
@@ -61,16 +61,19 @@ class RealRecognizer:
     ao fim de :meth:`encode` (RNF04/LGPD).
     """
 
-    def __init__(self, threshold, detector=None):
+    def __init__(self, threshold, detector=None, preview=None):
         """
         Args:
             threshold: Distância qui-quadrado máxima para aceitar uma
                 identidade. Ver ``SENTINEL_FACE_THRESHOLD``.
             detector: Detector de rosto; ``None`` constrói o Haar/OpenCV sob
                 demanda. Injetável para teste sem câmera nem OpenCV.
+            preview: ``callable(rosto, rotulo)`` para exibir o recorte, ou
+                ``None``. Ver :mod:`sentinel.services.face_preview`.
         """
         self._threshold = threshold
         self._detector = detector
+        self._preview = preview
 
     def _get_detector(self):
         """Constrói o detector na primeira utilização (import tardio de cv2)."""
@@ -93,6 +96,10 @@ class RealRecognizer:
         rosto = self._get_detector().extract(frame)
         if rosto is None:
             return None
+        if self._preview is not None:
+            # O rótulo distingue as capturas do cadastro (nome do usuário) da
+            # verificação de acesso, que ainda não sabe quem é.
+            self._preview(rosto, username or "verificacao")
         return face_encoding.encode(rosto)
 
     def identify(self, conn, frame):
@@ -128,5 +135,8 @@ class RealRecognizer:
 def get_recognizer(cfg):
     """Devolve o reconhecedor apropriado para o backend em ``cfg``."""
     if cfg.backend == "real":
-        return RealRecognizer(threshold=cfg.face_threshold)
+        return RealRecognizer(
+            threshold=cfg.face_threshold,
+            preview=face_preview.make(cfg),
+        )
     return MockRecognizer()

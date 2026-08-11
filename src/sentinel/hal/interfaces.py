@@ -30,10 +30,15 @@ Display (LCD1602 I2C)
     ``show(line1, line2="")``: exibe até duas linhas.
     ``clear()``: limpa o display.
 
-Indicators (LEDs + buzzer)
+Indicators (LED + buzzer)
     ``signal_granted()`` / ``signal_denied()``: feedback composto de sucesso/
     falha. ``led_green(on)`` / ``led_red(on)`` / ``beep(pattern)``: controle
     granular.
+    Padrões sonoros: ``"ok"`` é um bipe curto ("pi"); ``"fail"`` são dois curtos
+    e um longo ("pi pi piiii"). A distinção está na duração, não só na contagem,
+    para ser reconhecível sem olhar o display.
+    A Projects Board tem um único LED, então ``led_red(True)`` pisca o mesmo LED
+    que ``led_green`` acende de forma contínua.
 
 Lock (relé + fechadura solenoide, ou servomotor)
     ``unlock(seconds)``: libera a fechadura pelo tempo indicado e retorna ao

@@ -21,6 +21,31 @@ BUZZER_PIN = 12
 DENY_BLINKS = 3
 BLINK_SECONDS = 0.15
 
+# Duração de cada bipe, em segundos, por padrão sonoro. Concedido e negado
+# precisam ser distinguíveis SEM olhar o display — é o retorno que a pessoa
+# recebe de longe, ou de costas para o LCD.
+#
+#   ok   -> um bipe curto:            "pi"
+#   fail -> dois curtos e um longo:   "pi pi piiii"
+#
+# O contraste está na duração, não só na contagem: três bipes iguais são fáceis
+# de confundir com um só quando ecoam num corredor.
+BEEP_PATTERNS = {
+    "ok": (0.15,),
+    "fail": (0.12, 0.12, 0.60),
+}
+
+# Silêncio entre bipes consecutivos.
+BEEP_GAP = 0.12
+
+
+def beep_sequence(pattern):
+    """Durações dos bipes de um padrão; cai no ``ok`` se o nome for desconhecido.
+
+    Separado da classe para poder ser verificado sem hardware.
+    """
+    return BEEP_PATTERNS.get(pattern, BEEP_PATTERNS["ok"])
+
 
 class RealIndicators:
     """LED de status e buzzer ativo via ``gpiozero`` (import tardio)."""
@@ -51,12 +76,14 @@ class RealIndicators:
             time.sleep(BLINK_SECONDS)
 
     def beep(self, pattern="ok"):
-        beeps = 1 if pattern == "ok" else 3
-        for _ in range(beeps):
+        """Toca o padrão sonoro pedido (ver :data:`BEEP_PATTERNS`)."""
+        duracoes = beep_sequence(pattern)
+        for i, duracao in enumerate(duracoes):
             self._buzzer.on()
-            time.sleep(0.1)
+            time.sleep(duracao)
             self._buzzer.off()
-            time.sleep(0.1)
+            if i < len(duracoes) - 1:  # sem pausa depois do último bipe
+                time.sleep(BEEP_GAP)
 
     def signal_granted(self):
         self.beep("ok")
