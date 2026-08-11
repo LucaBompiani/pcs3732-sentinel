@@ -107,6 +107,7 @@ Três restrições da placa (Tutorial, pág. 41) moldaram o projeto:
 | `SENTINEL_DB_PATH` | `sentinel.db` | Caminho do banco SQLite |
 | `SENTINEL_RELAY_SECONDS` | `5.0` | Tempo de acionamento da fechadura (RF06) |
 | `SENTINEL_FACTOR2_TIMEOUT` | `15.0` | Timeout de espera do 2º fator (RF04) |
+| `SENTINEL_SECOND_FACTOR_GRACE` | `3.0` | No cadastro, espera pelo 2º fator quando um já veio |
 | `SENTINEL_PRESENCE_TIMEOUT` | *(bloqueia)* | Timeout de espera por presença |
 | `SENTINEL_TOTAL_TIMEOUT` | `8.0` | Orçamento total de autenticação (RNF05) |
 | `SENTINEL_PIN_ECHO` | `mask` | Eco do PIN no display: `mask`, `plain` ou `off` |

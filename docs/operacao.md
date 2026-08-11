@@ -87,9 +87,13 @@ O terminal confirma com `CADASTRO CONCLUIDO`.
 **PIN mestre** é o do operador, não o da Ana — ele autoriza o cadastro (RF08).
 Padrão `0000`; troque em `.env` (`SENTINEL_MASTER_PIN`) antes de usar pra valer.
 
-**O passo 8 sempre espera o cartão**, mesmo se você só quer PIN. Isso é
-esperado: basta aguardar o timeout. Um dos dois fatores basta — se nem PIN nem
-cartão forem apresentados, o cadastro é recusado com `Sem PIN/cartao`.
+**O passo 8 pede o cartão mesmo se você só quer PIN**, mas a espera é curta
+(3 s, `SENTINEL_SECOND_FACTOR_GRACE`) porque o PIN já resolveu o segundo fator.
+Se você *não* definiu PIN, o cartão ganha o tempo cheio — é a única chance de
+segundo fator. Sem nenhum dos dois, o cadastro é recusado com `Sem PIN/cartao`.
+
+No acesso não há essa espera: os dois fatores são lidos em paralelo e o
+primeiro que chegar encerra.
 
 ### Se o rosto não for detectado
 
@@ -285,6 +289,8 @@ de expressão e ângulo (não 5 fotos idênticas).
 | Janela não abre | sem monitor / sessão SSH | usar `--cli`, ou ligar monitor no Pi |
 | `no display name` / `_tkinter` | falta `python3-tk` | `sudo apt install -y python3-tk` |
 | Janela abre mas sem foto | ainda não houve captura | clicar em "Ciclo de acesso" ou "Cadastrar usuário" |
+| Foto não aparece no backend `mock` | o mock não produz imagem | testar com `SENTINEL_BACKEND=real` |
+| `[preview] falhou` no registro | `cv2` ausente ou quadro inesperado | `sudo apt install -y python3-opencv` |
 
 ---
 

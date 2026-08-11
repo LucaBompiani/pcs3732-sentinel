@@ -185,9 +185,9 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR, servidor=None):
         return None
 
     if modo == "gui" and servidor is None:
-        from sentinel.app import gui
+        from sentinel.app import panel
 
-        servidor = gui.current_panel()
+        servidor = panel.current_panel()
         if servidor is None:
             # Rodando pela CLI (ou sem monitor): cair para o desenho no
             # terminal em vez de simplesmente não mostrar nada — o silêncio

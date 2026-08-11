@@ -21,6 +21,7 @@ import threading
 import tkinter as tk
 from tkinter import simpledialog, ttk
 
+from sentinel.app import panel
 from sentinel.app.state_machine import run_access_attempt, run_access_cycle, run_enrollment
 from sentinel.hal.factory import build_hal
 from sentinel.infra.db import connect
@@ -417,28 +418,27 @@ class SentinelApp:
         self.root.mainloop()
 
 
-# Instância única: o reconhecedor publica a captura de dentro do HAL, longe de
-# onde a janela é criada, e passar a referência por toda a cadeia só para isso
-# poluiria as assinaturas.
-_painel = None
-
-
 def current_panel():
-    """Janela em execução, ou ``None`` (por exemplo, quando se usa a CLI)."""
-    return _painel
+    """Janela em execução, ou ``None`` (por exemplo, quando se usa a CLI).
+
+    Delega ao :mod:`sentinel.app.panel`: guardar o registro aqui não funciona
+    quando este arquivo é iniciado como script, porque ele passa a existir duas
+    vezes (como ``__main__`` e como ``sentinel.app.gui``), cada um com sua
+    própria variável.
+    """
+    return panel.current_panel()
 
 
 def main():
     from sentinel.config import load_config
 
-    global _painel
     cfg = load_config()
     app = SentinelApp(cfg)
-    _painel = app
+    panel.set_panel(app)
     try:
         app.run()
     finally:
-        _painel = None
+        panel.set_panel(None)
 
 
 if __name__ == "__main__":

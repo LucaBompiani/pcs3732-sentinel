@@ -267,7 +267,9 @@ def test_captura_da_camera_aparece_na_janela(app):
     cv2 = pytest.importorskip("cv2", reason="OpenCV so existe no Raspberry Pi")
     np = pytest.importorskip("numpy")
 
-    from src.sentinel.app import gui as gui_mod
+    # O registro fica em sentinel.app.panel, que nunca e ponto de entrada e
+    # por isso existe uma vez so (ver o docstring daquele modulo).
+    from sentinel.app import panel as registro
     from src.sentinel.services import face_preview
     from src.sentinel.services.face_recognition import RealRecognizer
 
@@ -277,8 +279,8 @@ def test_captura_da_camera_aparece_na_janela(app):
         def detect(self, frame):
             return [[128] * 64 for _ in range(64)], (40, 30, 120, 120)
 
-    anterior = gui_mod._painel
-    gui_mod._painel = app
+    anterior = registro.current_panel()
+    registro.set_panel(app)
     try:
         cfg = dataclasses.replace(app.cfg, face_preview="gui")
         rec = RealRecognizer(
@@ -290,7 +292,7 @@ def test_captura_da_camera_aparece_na_janela(app):
         assert rec.encode(quadro, "ana") is not None
         _processar(app, ciclos=6)
     finally:
-        gui_mod._painel = anterior
+        registro.set_panel(anterior)
 
     assert app.canvas.find_withtag("captura") != ()
     assert app.lbl_rotulo.cget("text") == "Cadastro: ana"
@@ -300,17 +302,50 @@ def test_captura_da_camera_aparece_na_janela(app):
 def test_sem_janela_aberta_o_preview_avisa_em_vez_de_sumir(app):
     # Rodando pela CLI o painel nao existe. Antes o preview simplesmente nao
     # publicava nada, e parecia que a captura nao tinha acontecido.
-    from src.sentinel.app import gui as gui_mod
+    from sentinel.app import panel as registro
     from src.sentinel.services import face_preview
 
-    anterior = gui_mod._painel
-    gui_mod._painel = None
+    anterior = registro.current_panel()
+    registro.set_panel(None)
     escrito = []
     try:
         cfg = dataclasses.replace(app.cfg, face_preview="gui")
         callback = face_preview.make(cfg, saida=escrito.append)
     finally:
-        gui_mod._painel = anterior
+        registro.set_panel(anterior)
 
     assert callback is not None  # cai para ascii, nao vira None
     assert any("janela" in linha for linha in escrito)
+
+
+def test_janela_iniciada_como_script_fica_visivel_para_o_preview(app):
+    """Regressao de "a imagem nao aparece na GUI".
+
+    ``run-pi.sh`` executa ``python src/sentinel/app/gui.py``, o que carrega o
+    arquivo com o nome ``__main__``. Um ``import sentinel.app.gui`` posterior
+    carrega o MESMO arquivo de novo, sob o nome real: dois modulos, duas
+    globais. Com o registro dentro de gui.py, a janela ficava no ``__main__`` e
+    o preview procurava no outro, achava None e nao exibia nada.
+    """
+    import runpy
+
+    from sentinel.app import panel as registro
+
+    # Garante o cenario: o modulo canonico existe e esta vazio.
+    assert registro.current_panel() is None
+
+    import sentinel.app.gui as gui_canonico
+
+    caminho = gui_canonico.__file__
+    modulo_script = runpy.run_path(caminho, run_name="__main__")
+
+    # O arquivo carregado como script e um objeto diferente...
+    assert modulo_script["SentinelApp"] is not gui_canonico.SentinelApp
+    # ...mas o registro que os dois enxergam e o mesmo.
+    assert modulo_script["panel"] is registro
+
+    registro.set_panel(app)
+    try:
+        assert modulo_script["current_panel"]() is app
+    finally:
+        registro.set_panel(None)
