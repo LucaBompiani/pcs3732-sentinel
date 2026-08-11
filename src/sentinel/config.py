@@ -38,6 +38,9 @@ class Config:
             falham. Combate o falso negativo do detector, que perde o rosto por
             piscada, micro-movimento ou desfoque momentâneo.
         face_interval: Intervalo entre os quadros da rajada, em segundos.
+        second_factor_grace: No cadastro, tempo de espera pelo SEGUNDO fator
+            depois que um já foi apresentado. Sem isso, quem cadastra só com PIN
+            esperava o timeout inteiro por um cartão que nunca viria.
         face_samples: Número de amostras faciais coletadas no cadastro (RF08).
         face_threshold: Distância qui-quadrado máxima entre o rosto capturado e
             a amostra mais próxima para aceitar a identidade (RF03). Menor =
@@ -53,6 +56,7 @@ class Config:
     db_path: str
     relay_seconds: float
     factor2_timeout: float
+    second_factor_grace: float
     presence_timeout: "float | None"
     total_timeout: float
     pin_echo: str
@@ -99,6 +103,7 @@ def load_config():
         db_path=os.environ.get("SENTINEL_DB_PATH", "sentinel.db"),
         relay_seconds=_get_float("SENTINEL_RELAY_SECONDS", 5.0),
         factor2_timeout=_get_float("SENTINEL_FACTOR2_TIMEOUT", 15.0),
+        second_factor_grace=_get_float("SENTINEL_SECOND_FACTOR_GRACE", 3.0),
         presence_timeout=_get_optional_float("SENTINEL_PRESENCE_TIMEOUT", None),
         total_timeout=_get_float("SENTINEL_TOTAL_TIMEOUT", 8.0),
         pin_echo=os.environ.get("SENTINEL_PIN_ECHO", "mask").lower(),

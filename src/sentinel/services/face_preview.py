@@ -188,8 +188,16 @@ def make(cfg, saida=print, diretorio=PREVIEW_DIR, servidor=None):
         from sentinel.app import gui
 
         servidor = gui.current_panel()
-        if servidor is None:  # a janela nao esta aberta: nada a exibir
-            return None
+        if servidor is None:
+            # Rodando pela CLI (ou sem monitor): cair para o desenho no
+            # terminal em vez de simplesmente não mostrar nada — o silêncio
+            # faz parecer que a captura não aconteceu.
+            saida("[preview] janela não está aberta; desenhando no terminal")
+            modo = "ascii"
+        else:
+            # Mensagens de falha precisam ir para o registro da janela: em modo
+            # gráfico ninguém está olhando o terminal.
+            saida = servidor.log_line
 
     if modo == "window" and not has_display():
         saida(

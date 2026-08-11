@@ -318,8 +318,12 @@ def run_enrollment(conn, hal, cfg, username, recognizer=None):
     )
     pin = pin or None  # "#" sem dígitos não é um PIN
 
-    hal.display.show("Passe o cartao", "ou aguarde")
-    card_uid = hal.rfid.read_uid(cfg.factor2_timeout)
+    # Um dos dois fatores basta. Se o PIN já veio, o cartão é um extra: esperar
+    # o timeout inteiro (15 s) por um cartão que talvez nem exista deixava o
+    # cadastro parado, parecendo travado.
+    espera_cartao = cfg.second_factor_grace if pin else cfg.factor2_timeout
+    hal.display.show("Passe o cartao", f"ou aguarde {espera_cartao:.0f}s")
+    card_uid = hal.rfid.read_uid(espera_cartao)
     if pin is None and card_uid is None:
         hal.indicators.signal_denied()
         hal.display.show("Cadastro negado", "Sem PIN/cartao")

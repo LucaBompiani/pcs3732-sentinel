@@ -254,3 +254,63 @@ def test_cadastro_manual_verifica_duplicata_na_thread_de_trabalho(app, monkeypat
     conteudo = app.log.get("1.0", "end")
     assert "já existe" in conteudo
     assert "same thread" not in conteudo
+
+
+# ------------------------------------------------- captura chegando na janela
+
+def test_captura_da_camera_aparece_na_janela(app):
+    """Caminho real: quadro numpy -> deteccao -> anotacao -> PNG -> canvas.
+
+    Regressao de "a captura nao aparece": cada elo desse caminho ja falhou em
+    silencio alguma vez (janela fechada, cv2 ausente, quadro em formato errado).
+    """
+    cv2 = pytest.importorskip("cv2", reason="OpenCV so existe no Raspberry Pi")
+    np = pytest.importorskip("numpy")
+
+    from src.sentinel.app import gui as gui_mod
+    from src.sentinel.services import face_preview
+    from src.sentinel.services.face_recognition import RealRecognizer
+
+    class DetectorFixo:
+        """Devolve recorte e caixa, como o Haar faz num rosto encontrado."""
+
+        def detect(self, frame):
+            return [[128] * 64 for _ in range(64)], (40, 30, 120, 120)
+
+    anterior = gui_mod._painel
+    gui_mod._painel = app
+    try:
+        cfg = dataclasses.replace(app.cfg, face_preview="gui")
+        rec = RealRecognizer(
+            threshold=0.5, detector=DetectorFixo(), preview=face_preview.make(cfg)
+        )
+        # Quadro como a picamera2 entrega: numpy RGB de 3 canais.
+        quadro = np.zeros((480, 640, 3), dtype=np.uint8)
+
+        assert rec.encode(quadro, "ana") is not None
+        _processar(app, ciclos=6)
+    finally:
+        gui_mod._painel = anterior
+
+    assert app.canvas.find_withtag("captura") != ()
+    assert app.lbl_rotulo.cget("text") == "Cadastro: ana"
+    assert "falhou" not in app.log.get("1.0", "end")
+
+
+def test_sem_janela_aberta_o_preview_avisa_em_vez_de_sumir(app):
+    # Rodando pela CLI o painel nao existe. Antes o preview simplesmente nao
+    # publicava nada, e parecia que a captura nao tinha acontecido.
+    from src.sentinel.app import gui as gui_mod
+    from src.sentinel.services import face_preview
+
+    anterior = gui_mod._painel
+    gui_mod._painel = None
+    escrito = []
+    try:
+        cfg = dataclasses.replace(app.cfg, face_preview="gui")
+        callback = face_preview.make(cfg, saida=escrito.append)
+    finally:
+        gui_mod._painel = anterior
+
+    assert callback is not None  # cai para ascii, nao vira None
+    assert any("janela" in linha for linha in escrito)
