@@ -1,23 +1,28 @@
 [project]
 name = "pcs3732-sentinel"
 version = "0.2.0"
-requires-python = ">=3.14"
+# 3.11 é o Python do Raspberry Pi OS Bookworm. O backend `real` precisa rodar
+# no interpretador do sistema para enxergar picamera2/libcamera/cv2 do apt, que
+# não são instaláveis por pip — logo o piso não pode ser maior que ele.
+requires-python = ">=3.11"
 dependencies = [
     "pytest>=9.1.1",
 ]
 
 [project.optional-dependencies]
 # Dependências de hardware do Raspberry Pi. Instaladas apenas no dispositivo
-# (backend real) via `uv sync --extra pi` ou `pip install .[pi]`. O PC de
-# desenvolvimento não precisa delas: o backend mock roda com a base acima.
+# (backend real) por `./scripts/setup-pi.sh`. O PC de desenvolvimento não
+# precisa delas: o backend mock roda com a base acima.
+#
+# picamera2, libcamera, cv2 e numpy NÃO estão aqui de propósito: vêm do apt
+# (python3-picamera2, python3-opencv, python3-numpy), pois dependem de bindings
+# C++ compilados contra as bibliotecas do sistema e não são instaláveis por pip.
+# A venv os enxerga porque é criada com --system-site-packages.
 pi = [
     "gpiozero",
     "lgpio",
     "RPi.GPIO",
-    "picamera2",
     "mfrc522",
     "spidev",
     "RPLCD",
-    "opencv-python-headless",
-    "numpy",
 ]

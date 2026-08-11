@@ -46,12 +46,29 @@ A CLI permite cadastrar usuários (PIN e/ou cartão RFID), simular tentativas de
 
 ### Execução no Raspberry Pi (backend real)
 
-No dispositivo, instale as dependências de hardware e selecione o backend real:
+Todo o provisionamento está em `scripts/setup-pi.sh` — roda **uma vez por cartão SD** e é idempotente:
 
 ```bash
-make install-pi          # uv sync --extra pi (gpiozero, picamera2, mfrc522, RPLCD, opencv...)
-make run-real            # SENTINEL_BACKEND=real
+make setup-pi     # pacotes apt, SPI/I2C/câmera, grupos, venv, deps, diagnóstico
+sudo reboot       # necessário na primeira vez (firmware + grupos)
+cp .env.example .env && $EDITOR .env
+make run-pi       # sobe a aplicação com backend real
 ```
+
+O que o `setup-pi.sh` faz:
+
+1. **apt** — `python3-picamera2`, `python3-opencv`, `python3-numpy`, `python3-lgpio`, `i2c-tools`, `libcap-dev`.
+2. **Interfaces do firmware** — `dtparam=spi=on` (RC522), `dtparam=i2c_arm=on` (LCD1602) e `camera_auto_detect=1` em `config.txt`, via `raspi-config nonint`.
+3. **Grupos** — adiciona o usuário a `gpio`, `spi`, `i2c`, `video`, `dialout`, para não precisar de `sudo`.
+4. **Python** — instala o `uv` se faltar e cria a `.venv` a partir do **python3 do sistema** com `--system-site-packages`, depois `uv sync --extra pi --inexact`.
+5. **Diagnóstico** — confere se a IMX219 (Camera v2) aparece, varre o barramento I2C atrás do `0x27` do LCD e valida `/dev/spidev0.0`.
+6. **Pinagem** — imprime o mapa de pinos esperado para conferir a montagem.
+
+Para só diagnosticar, sem alterar nada: `make check-pi` (`./scripts/setup-pi.sh --check`).
+
+O `run-pi.sh` carrega o `.env` (sem sobrescrever variáveis já exportadas na shell), valida que SPI/I2C/venv estão prontos — falhando com mensagem clara em vez de um `ImportError` no meio da inicialização do HAL — e chama a CLI. Aceita `--mock` para depurar a lógica no próprio Pi sem tocar no hardware.
+
+> **Por que `--system-site-packages`:** `picamera2`, `libcamera` e `cv2` dependem de bindings C++ compilados contra as bibliotecas do sistema e **não são instaláveis por pip** — vêm do apt. Uma venv isolada (ou um Python gerenciado pelo `uv`) não os enxerga. Por isso `requires-python` é `>=3.11`, o Python do Raspberry Pi OS Bookworm: o backend real precisa rodar no interpretador que tem esses módulos.
 
 Os pinos GPIO usados por cada driver estão definidos no topo dos módulos em `src/sentinel/hal/real/` e devem ser ajustados conforme a montagem física.
 
