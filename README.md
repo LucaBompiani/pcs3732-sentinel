@@ -4,27 +4,33 @@ Sistema embarcado de controle de acesso físico com **autenticação multifator 
 
 Projeto da disciplina PCS3732 – Laboratório de Processadores (Poli-USP).
 
-> **Status:** lógica de MFA e orquestração implementadas, com **Camada de Abstração de Hardware (HAL)** de dois backends: `mock` (roda em qualquer PC, usado nos testes) e `real` (drivers do Raspberry Pi). O segundo fator aceita **PIN ou cartão RFID**, com **bloqueio temporário após falhas seguidas**. O acesso pode ser atuado por fechadura solenoide (via relé) ou por servomotor (demonstração). Reconhecimento facial real (OpenCV LBPH) e drivers de GPIO/câmera/RFID rodam somente no Pi. Ver [docs/relatorio.md](docs/relatorio.md).
+> **Status:** fluxo MFA completo e funcional. **Camada de Abstração de Hardware (HAL)** com dois backends: `mock` (roda em qualquer PC, usado nos testes) e `real` (drivers do Raspberry Pi). O Fator 1 é **reconhecimento facial LBPH** — detecção Haar (OpenCV) + histogramas de padrões binários locais implementados no projeto, de modo que apenas vetores de características são persistidos (RNF04). O Fator 2 aceita **PIN ou cartão RFID**, com **bloqueio temporário após falhas seguidas**. A detecção de rosto exige OpenCV e roda somente no Pi; o restante do reconhecimento é testável em qualquer PC. Ver [docs/operacao.md](docs/operacao.md) para operar e [docs/relatorio.md](docs/relatorio.md) para o projeto.
 
 ## Estrutura do repositório
 
 ```
 docs/
+  operacao.md           # guia de operação no Pi (cadastro, casos de uso, calibração)
   relatorio.md          # documentação do projeto (motivação, requisitos, arquitetura, testes)
   diagramas/            # fontes editáveis dos diagramas (D2)
   figuras/              # diagramas renderizados (SVG/PNG)
+scripts/
+  setup-pi.sh           # provisionamento do Raspberry Pi (uma vez por cartão SD)
+  run-pi.sh             # sobe a aplicação validando o hardware
+  diag-camera.sh        # diagnóstico passo a passo da câmera CSI
 src/
   sentinel/
     config.py           # configuração via variáveis de ambiente (backend + tunables)
     app/                # máquina de estados / orquestração (state_machine, cli)
-    services/           # reconhecimento facial, verificação do 2º fator, decisão MFA
+    services/           # Fator 1 (face_detector, face_encoding, face_recognition),
+                        #   Fator 2, bloqueio e decisão MFA
     infra/              # persistência SQLite, segurança (hash+salt), repositórios
     hal/                # Camada de Abstração de Hardware
       interfaces.py     #   contratos dos dispositivos
       factory.py        #   monta o HAL conforme o backend e o atuador
       mock/             #   backend simulado (PC/testes)
       real/             #   drivers do Raspberry Pi (import tardio)
-tests/                  # testes automatizados (75 casos)
+tests/                  # testes automatizados
 ```
 
 ## Como rodar
@@ -104,9 +110,26 @@ Três restrições da placa (Tutorial, pág. 41) moldaram o projeto:
 | `SENTINEL_PRESENCE_TIMEOUT` | *(bloqueia)* | Timeout de espera por presença |
 | `SENTINEL_TOTAL_TIMEOUT` | `8.0` | Orçamento total de autenticação (RNF05) |
 | `SENTINEL_FACE_SAMPLES` | `5` | Amostras faciais coletadas no cadastro (RF08) |
+| `SENTINEL_FACE_THRESHOLD` | `0.55` | Distância máxima para aceitar um rosto (RF03) |
 | `SENTINEL_MASTER_PIN` | `0000` | PIN mestre do operador para enrolamento (RF08) |
 | `SENTINEL_MAX_FAILURES` | `3` | Falhas seguidas do 2º fator até bloquear (RF10) |
 | `SENTINEL_LOCKOUT_SECONDS` | `60.0` | Duração do bloqueio temporário (RF10) |
+
+### Reconhecimento facial (Fator 1)
+
+Pipeline: **detecção Haar** (OpenCV) recorta o rosto → normalização para 64×64 em tons de cinza com equalização de histograma → **suavização 3×3** → **códigos LBP** de 8 vizinhos → **histograma espacial** numa grade 4×4 → vetor de 4096 dimensões. A identificação compara o vetor do quadro atual com as amostras do cadastro por **distância qui-quadrado** e aceita a mais próxima se ficar abaixo de `SENTINEL_FACE_THRESHOLD`.
+
+O LBPH é implementado no projeto ([face_encoding.py](src/sentinel/services/face_encoding.py)) em vez de usar `cv2.face.LBPHFaceRecognizer`, por três motivos:
+
+- **LGPD (RNF04).** O recognizer do OpenCV treina a partir das *imagens* (`model.train(imagens, rotulos)`), o que obrigaria a persistir rostos. Calculando o histograma diretamente, o banco guarda só o vetor — a imagem é descartada após a captura e nunca vai a disco.
+- **`cv2.face` vive nos módulos contrib**, que nem toda distribuição do OpenCV empacota. Aqui o `cv2` é necessário apenas para detectar e recortar o rosto.
+- **Testabilidade.** O algoritmo é stdlib puro, então roda e é verificado em qualquer PC, sem câmera nem OpenCV — os testes injetam um detector falso com faces sintéticas.
+
+Não há etapa de treino com estado: a base de amostras *é* o modelo, então um cadastro novo passa a valer de imediato, sem retreinar. Amostras de bases anteriores a esta implementação (que guardavam texto) são ignoradas na comparação em vez de causar erro.
+
+A suavização antes do LBP não é cosmética: sem ela, um nível de cinza de ruído do sensor já inverte bits do código em regiões lisas da pele. Medido em faces sintéticas, ela derruba a distância entre duas capturas da mesma pessoa de ~0.78 para ~0.12, enquanto entre pessoas diferentes sobe para ~1.38 — é essa separação que torna o limiar utilizável.
+
+> O limiar padrão (`0.55`) foi calibrado com faces sintéticas. **Com rostos reais ele precisa ser conferido na montagem** — procedimento na [seção 6 do guia de operação](docs/operacao.md).
 
 ### Bloqueio por tentativas (RF10)
 
@@ -134,4 +157,5 @@ d2 docs/diagramas/fluxo_mfa.d2 docs/figuras/fluxo_mfa.svg
 
 ## Documentação
 
-Ver [docs/relatorio.md](docs/relatorio.md).
+- [docs/operacao.md](docs/operacao.md) — guia de operação no Pi: cadastro passo a passo, casos de uso, roteiro de demonstração, calibração e solução de problemas.
+- [docs/relatorio.md](docs/relatorio.md) — documentação do projeto (motivação, requisitos, arquitetura, testes).

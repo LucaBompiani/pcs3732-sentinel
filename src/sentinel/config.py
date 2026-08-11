@@ -26,6 +26,10 @@ class Config:
             indefinidamente.
         total_timeout: Orçamento total do fluxo de autenticação (RNF05).
         face_samples: Número de amostras faciais coletadas no cadastro (RF08).
+        face_threshold: Distância qui-quadrado máxima entre o rosto capturado e
+            a amostra mais próxima para aceitar a identidade (RF03). Menor =
+            mais rigoroso (mais falsos negativos); maior = mais permissivo
+            (mais falsos positivos). Precisa de calibração empírica no Pi.
         master_pin: PIN mestre do operador exigido no enrolamento (RF08).
         max_failures: Falhas seguidas do Fator 2 que bloqueiam o usuário (RF10).
         lockout_seconds: Duração do bloqueio temporário em segundos (RF10).
@@ -39,6 +43,7 @@ class Config:
     presence_timeout: "float | None"
     total_timeout: float
     face_samples: int
+    face_threshold: float
     master_pin: str
     max_failures: int
     lockout_seconds: float
@@ -80,6 +85,7 @@ def load_config():
         presence_timeout=_get_optional_float("SENTINEL_PRESENCE_TIMEOUT", None),
         total_timeout=_get_float("SENTINEL_TOTAL_TIMEOUT", 8.0),
         face_samples=int(_get_float("SENTINEL_FACE_SAMPLES", 5)),
+        face_threshold=_get_float("SENTINEL_FACE_THRESHOLD", 0.55),
         master_pin=os.environ.get("SENTINEL_MASTER_PIN", "0000"),
         max_failures=int(_get_float("SENTINEL_MAX_FAILURES", 3)),
         lockout_seconds=_get_float("SENTINEL_LOCKOUT_SECONDS", 60.0),

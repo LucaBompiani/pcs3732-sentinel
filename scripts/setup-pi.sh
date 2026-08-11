@@ -255,17 +255,19 @@ setup_python() {
 detect_hardware() {
     step "5/6 Detecção de hardware"
 
-    if command -v rpicam-hello >/dev/null 2>&1; then
-        if rpicam-hello --list-cameras 2>/dev/null | grep -qi 'imx219'; then
-            ok "câmera IMX219 (Camera v2) detectada"
-        else
-            warn "câmera não detectada — cheque o cabo flat (contatos azuis para a porta Ethernet)"
-        fi
-    elif command -v libcamera-hello >/dev/null 2>&1; then
-        libcamera-hello --list-cameras 2>/dev/null | grep -qi imx219 \
-            && ok "câmera IMX219 detectada" || warn "câmera não detectada"
+    # ATENÇÃO ao 2>&1: rpicam-hello escreve a lista de câmeras no STDERR.
+    # Descartar stderr faz a câmera parecer ausente mesmo funcionando.
+    local cam_cmd=""
+    local c
+    for c in rpicam-hello libcamera-hello; do
+        command -v "$c" >/dev/null 2>&1 && { cam_cmd="$c"; break; }
+    done
+    if [[ -z "$cam_cmd" ]]; then
+        warn "rpicam-hello/libcamera-hello ausentes — instale rpicam-apps"
+    elif "$cam_cmd" --list-cameras 2>&1 | grep -qi imx219; then
+        ok "câmera IMX219 (Camera v2) detectada via $cam_cmd"
     else
-        warn "rpicam-hello/libcamera-hello ausentes — reinicie e rode de novo"
+        warn "câmera não detectada — rode ./scripts/diag-camera.sh"
     fi
 
     if [[ -e /dev/i2c-1 ]] && command -v i2cdetect >/dev/null 2>&1; then

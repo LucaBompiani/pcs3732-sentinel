@@ -19,9 +19,13 @@ def verify(conn, username, pin=None, *, card_uid=None):
     Returns:
         ``True`` se o PIN OU o cartão apresentado for válido para o usuário.
     """
+    # Testes de verdade (``if pin``), não ``is not None``: no teclado matricial,
+    # confirmar com ``#`` sem digitar nada devolve string vazia. Tratá-la como
+    # fator apresentado permitiria autenticar com "PIN vazio" caso o usuário
+    # tivesse sido cadastrado assim — um segundo fator que não é segredo algum.
     ok = False
-    if pin is not None:
+    if pin:
         ok = ok or verify_pin(conn, username, pin)
-    if card_uid is not None:
+    if card_uid:
         ok = ok or verify_card(conn, username, card_uid)
     return ok

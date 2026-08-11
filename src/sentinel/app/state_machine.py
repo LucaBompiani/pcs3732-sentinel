@@ -20,6 +20,10 @@ from sentinel.infra.users_repository import (
 from sentinel.services import face_recognition, lockout, second_factor
 from sentinel.services.decision import authorize
 
+# Quadros capturados por amostra desejada antes de desistir do cadastro: rostos
+# fora de quadro ou desfocados são descartados e recapturados.
+FACE_CAPTURE_ATTEMPTS = 6
+
 
 def run_access_attempt(conn, cfg, presented_name, pin=None, *, card_uid=None):
     """Núcleo puro: decide e registra uma tentativa de acesso.
@@ -139,7 +143,7 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
     if lockout.is_locked(conn, candidate):  # RF10
         autorizado, f1, f2 = run_access_attempt(conn, cfg, candidate)
         hal.indicators.signal_denied()
-        hal.display.show("Usuario bloqueado", candidate)
+        hal.display.show("Bloqueado", candidate)
         return autorizado, f1, f2
 
     hal.display.show("Fator 2", "PIN ou cartao")  # RF04
@@ -160,7 +164,32 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
     return autorizado, f1, f2
 
 
-def run_enrollment(conn, hal, cfg, username):
+def _collect_face_samples(hal, cfg, recognizer, username):
+    """Captura quadros até obter ``cfg.face_samples`` vetores faciais.
+
+    Quadros sem rosto detectável são descartados e uma nova captura é feita, até
+    o teto de tentativas — no backend real é comum o usuário piscar, virar o
+    rosto ou sair de quadro durante a coleta, e abortar o cadastro por isso
+    seria frustrante. O teto evita laço infinito quando não há ninguém.
+
+    Returns:
+        Lista de vetores em ``bytes``; vazia se nenhum rosto foi obtido.
+    """
+    amostras = []
+    tentativas = 0
+    limite = cfg.face_samples * FACE_CAPTURE_ATTEMPTS
+    while len(amostras) < cfg.face_samples and tentativas < limite:
+        tentativas += 1
+        embedding = recognizer.encode(hal.camera.capture(), username)
+        if embedding is None:
+            hal.display.show("Rosto nao visto", "Olhe p/ camera")
+            continue
+        amostras.append(embedding)
+        hal.display.show("Olhe p/ camera", f"Capturando {len(amostras)}/{cfg.face_samples}")
+    return amostras
+
+
+def run_enrollment(conn, hal, cfg, username, recognizer=None):
     """Cadastra (enrola) um novo usuário com os dois fatores (RF08).
 
     Exige o gatilho de cadastro (tecla ``A`` no hardware, pois a placa não tem
@@ -172,19 +201,22 @@ def run_enrollment(conn, hal, cfg, username):
         hal: Dispositivos de hardware.
         cfg: Configuração (PIN mestre, número de amostras, timeouts).
         username: Nome do novo usuário.
+        recognizer: Extrator de vetores faciais; ``None`` usa o do backend.
 
     Returns:
         ``True`` se o cadastro foi concluído; ``False`` se abortado (usuário já
         existente, PIN mestre incorreto ou nenhum segundo fator apresentado).
     """
+    recognizer = recognizer or face_recognition.get_recognizer(cfg)
+
     if user_exists(conn, username):
         hal.display.show("Cadastro", "Usuario existe")
         return False
 
-    hal.display.show("Cadastro", "Tecle A")
+    hal.display.show("Novo cadastro", "Tecle A p/ inic")
     hal.enroll_button.wait_for_press(cfg.factor2_timeout)
 
-    hal.display.show("PIN mestre", "do operador")
+    hal.display.show("PIN do operador", "termine com #")
     master = hal.keypad.read_pin(cfg.factor2_timeout)
     if master != cfg.master_pin:  # RF08 — autorização do operador
         hal.indicators.signal_denied()
@@ -195,22 +227,35 @@ def run_enrollment(conn, hal, cfg, username):
         )
         return False
 
-    hal.display.show("Capturando face", username)
+    hal.display.show("Olhe p/ camera", "Capturando 0/%d" % cfg.face_samples)
     hal.camera.start()
-    for _ in range(cfg.face_samples):  # RF02/RF08 — N amostras faciais
-        frame = hal.camera.capture()
-        embedding = (getattr(frame, "label", None) or username).encode("utf-8")
+    coletadas = _collect_face_samples(hal, cfg, recognizer, username)
+    if not coletadas:  # RF02 — nenhum rosto utilizável
+        hal.indicators.signal_denied()
+        hal.display.show("Cadastro negado", "Rosto nao visto")
+        log_event(
+            conn, username=username, fator1_ok=False, fator2_ok=False,
+            resultado="CADASTRO_NEGADO", tipo="CADASTRO",
+        )
+        return False
+    for embedding in coletadas:
         add_face_embedding(conn, username, embedding)
 
-    hal.display.show("Fator 2", "PIN e/ou cartao")
+    # Os dois fatores são pedidos em sequência, cada um com sua tela: pedir
+    # "PIN e/ou cartao" numa tela só deixava o usuário sem saber o que fazer
+    # durante a leitura do cartão, que acontece depois do PIN de qualquer forma.
+    hal.display.show("Defina seu PIN", "termine com #")
     pin = hal.keypad.read_pin(cfg.factor2_timeout)
+    pin = pin or None  # "#" sem dígitos não é um PIN
+
+    hal.display.show("Passe o cartao", "ou aguarde")
     card_uid = hal.rfid.read_uid(cfg.factor2_timeout)
     if pin is None and card_uid is None:
         hal.indicators.signal_denied()
-        hal.display.show("Cadastro negado", "Sem 2o fator")
+        hal.display.show("Cadastro negado", "Sem PIN/cartao")
         return False
 
-    hal.display.show("Consentimento?", "Confirme: A")  # RNF04 (LGPD)
+    hal.display.show("Aceita cadastro?", "Tecle A p/ sim")  # RNF04 (LGPD)
     hal.enroll_button.wait_for_press(cfg.factor2_timeout)
 
     create_user(conn, username, pin or "", card_uid=card_uid)
