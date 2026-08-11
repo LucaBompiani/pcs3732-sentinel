@@ -142,6 +142,33 @@ def read_second_factor(hal, timeout, on_change=None):
         time.sleep(0.05)
 
 
+def identify_with_retries(conn, hal, cfg, recognizer):
+    """Captura uma rajada de quadros e devolve o primeiro reconhecido.
+
+    O detector Haar exige rosto frontal e nítido, então uma única captura falha
+    com frequência por motivos banais — a pessoa piscou, virou de leve, o
+    autofoco não acompanhou. Repetir alguns quadros derruba esse falso negativo
+    sem tornar o sistema permissivo: o critério de aceitação de CADA quadro
+    continua o mesmo, apenas há mais oportunidades de pegar um quadro bom.
+
+    Encerra assim que alguém é identificado, então o caso normal (rosto
+    reconhecido de primeira) não fica mais lento.
+
+    Returns:
+        O usuário identificado, ou ``None`` se todos os quadros falharem.
+    """
+    ultimo = cfg.face_attempts - 1
+    for tentativa in range(cfg.face_attempts):
+        candidate = recognizer.identify(conn, hal.camera.capture())
+        if candidate is not None:
+            return candidate
+        if tentativa < ultimo:
+            hal.display.show("Reconhecendo...", f"{tentativa + 1}/{cfg.face_attempts}")
+            if cfg.face_interval:
+                time.sleep(cfg.face_interval)
+    return None
+
+
 def run_access_cycle(conn, hal, cfg, recognizer=None):
     """Fluxo físico completo de uma tentativa de acesso.
 
@@ -166,8 +193,8 @@ def run_access_cycle(conn, hal, cfg, recognizer=None):
     hal.presence.wait_for_presence(cfg.presence_timeout)  # RF01
 
     hal.camera.start()
-    frame = hal.camera.capture()  # RF02
-    candidate = recognizer.identify(conn, frame)  # RF03
+    # RF02/RF03 — rajada de quadros; o primeiro reconhecido encerra a busca.
+    candidate = identify_with_retries(conn, hal, cfg, recognizer)
 
     if candidate is None:
         autorizado, f1, f2 = run_access_attempt(conn, cfg, None, None)

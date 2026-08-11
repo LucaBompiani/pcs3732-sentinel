@@ -32,6 +32,11 @@ class Config:
         face_preview: Exibição do rosto capturado: ``"ascii"`` (padrão, desenha
             no terminal — funciona por SSH), ``"window"`` (janela do OpenCV,
             exige monitor) ou ``"off"``. Nada é gravado em disco (RNF04).
+        face_attempts: Quadros capturados por tentativa de acesso. O primeiro
+            que identificar alguém encerra a rajada; só é negado quando todos
+            falham. Combate o falso negativo do detector, que perde o rosto por
+            piscada, micro-movimento ou desfoque momentâneo.
+        face_interval: Intervalo entre os quadros da rajada, em segundos.
         face_samples: Número de amostras faciais coletadas no cadastro (RF08).
         face_threshold: Distância qui-quadrado máxima entre o rosto capturado e
             a amostra mais próxima para aceitar a identidade (RF03). Menor =
@@ -51,6 +56,8 @@ class Config:
     total_timeout: float
     pin_echo: str
     face_preview: str
+    face_attempts: int
+    face_interval: float
     face_samples: int
     face_threshold: float
     master_pin: str
@@ -95,6 +102,8 @@ def load_config():
         total_timeout=_get_float("SENTINEL_TOTAL_TIMEOUT", 8.0),
         pin_echo=os.environ.get("SENTINEL_PIN_ECHO", "mask").lower(),
         face_preview=os.environ.get("SENTINEL_FACE_PREVIEW", "ascii").lower(),
+        face_attempts=int(_get_float("SENTINEL_FACE_ATTEMPTS", 10)),
+        face_interval=_get_float("SENTINEL_FACE_INTERVAL", 0.3),
         face_samples=int(_get_float("SENTINEL_FACE_SAMPLES", 5)),
         face_threshold=_get_float("SENTINEL_FACE_THRESHOLD", 0.55),
         master_pin=os.environ.get("SENTINEL_MASTER_PIN", "0000"),
