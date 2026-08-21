@@ -16,6 +16,7 @@ roda na thread do Tk.
 As imagens ficam apenas em memória, nunca em disco (RNF04/LGPD).
 """
 
+import os
 import queue
 import threading
 import tkinter as tk
@@ -441,5 +442,8 @@ def main():
         panel.set_panel(None)
 
 
-if __name__ == "__main__":
+# ``SENTINEL_GUI_NO_LAUNCH`` deixa carregar este arquivo como script (para
+# exercitar o cenário do módulo duplo — ver tests/test_gui.py) sem abrir a janela
+# nem entrar no ``mainloop``, que bloquearia para sempre.
+if __name__ == "__main__" and not os.environ.get("SENTINEL_GUI_NO_LAUNCH"):
     main()

@@ -318,7 +318,7 @@ def test_sem_janela_aberta_o_preview_avisa_em_vez_de_sumir(app):
     assert any("janela" in linha for linha in escrito)
 
 
-def test_janela_iniciada_como_script_fica_visivel_para_o_preview(app):
+def test_janela_iniciada_como_script_fica_visivel_para_o_preview(app, monkeypatch):
     """Regressao de "a imagem nao aparece na GUI".
 
     ``run-pi.sh`` executa ``python src/sentinel/app/gui.py``, o que carrega o
@@ -337,6 +337,10 @@ def test_janela_iniciada_como_script_fica_visivel_para_o_preview(app):
     import sentinel.app.gui as gui_canonico
 
     caminho = gui_canonico.__file__
+    # So precisamos das globais do modulo carregado como script, nao da janela:
+    # sem este sentinel o ``main()`` do arquivo chamaria ``mainloop()`` e o teste
+    # travaria para sempre.
+    monkeypatch.setenv("SENTINEL_GUI_NO_LAUNCH", "1")
     modulo_script = runpy.run_path(caminho, run_name="__main__")
 
     # O arquivo carregado como script e um objeto diferente...
